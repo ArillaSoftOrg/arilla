@@ -53,6 +53,7 @@ export type SearchStageId =
   | "fuzzy"
   | "variant_relaxed"
   | "family"
+  | "qualifier_relaxed"
   | "head_only"
   | "constraint_relaxed"
   | "related";

@@ -29,6 +29,8 @@ import { type SQL, sql } from "drizzle-orm";
 import { productHasVerifiableOfferSql } from "../offers/freshness.ts";
 import type { LexiconEntry } from "./lexicon.ts";
 import { foldTurkish } from "./normalize.ts";
+import { isModelDetail } from "./query-shape.ts";
+import { headTypeToken } from "./semantic/product-type.ts";
 
 /**
  * Token eslesme esigi (strict_word_similarity). 0.5, Turkce ek ve unsuz
@@ -113,7 +115,27 @@ export function buildTextSlots(text: string, entries: readonly LexiconEntry[]): 
       index += 1;
     }
   }
-  return slots;
+  return headTypeFirst(slots, text);
+}
+
+/**
+ * Bas isim sonda kuralinin istisnasi (karar 0214): sorgunun urun turu (`product-type.ts`) son kelime
+ * degilse ("dikey supurge hafif") o slot sona alinir. Kapi ve aday dallari SON slotu bas isim sayar;
+ * "hafif" bas isim sayilinca kremler ve direnc bantlari gelir, supurge urunleri gelmez. Tur bilinmiyorsa
+ * ya da zaten sondaysa slotlar aynen kalir; diger slotlarin goreli sirasi korunur.
+ */
+export function headTypeFirst(slots: string[][], text: string): string[][] {
+  if (slots.length < 2) return slots;
+  const token = headTypeToken(text);
+  if (token === null) return slots;
+  const at = slots.findIndex((slot) => (slot[0] ?? "").split(" ").includes(token));
+  if (at === -1 || at === slots.length - 1) return slots;
+  // "iphone 17 pro max": tur ("iphone") sonda model ayrintisi (sayi, surum eki) tasir; o sorgularda
+  // son belirtec gercekten kapinin bas ismidir ve gevsetme sagdan birakir. Yalniz niteleyici kelimeler
+  // izliyorsa tasinir.
+  const trailing = slots.slice(at + 1).flatMap((slot) => (slot[0] ?? "").split(" "));
+  if (trailing.some(isModelDetail)) return slots;
+  return [...slots.slice(0, at), ...slots.slice(at + 1), slots[at] as string[]];
 }
 
 /** Bas isim haric kac slot eksik olabilir. */

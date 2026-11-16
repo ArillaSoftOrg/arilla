@@ -8,7 +8,10 @@
  * onlari KORUYAN ayri bir tokenizasyon var. Metin kapisi icin kullanilan
  * katlama (`foldForMatch`) ayni; iki taraf ayni dili konusur.
  */
+
+import { isModelDetail, VARIANT_WORDS } from "../query-shape.ts";
 import { textSlotsOf } from "../search-sql.ts";
+import { headTypeToken } from "../semantic/product-type.ts";
 import { foldForMatch } from "../text-match.ts";
 import type { QueryObject } from "../types.ts";
 import { type AliasSource, NO_ALIASES } from "./aliases.ts";
@@ -28,20 +31,11 @@ export interface QueryToken {
   value: string;
   alternatives: string[];
   kind: TokenKind;
+  /** Sorgudaki orijinal sira (urun turu sona alinsa da korunur; gevsetmede "tura en yakin" icin). */
+  pos?: number;
 }
 
-export const VARIANT_WORDS: ReadonlySet<string> = new Set([
-  "pro",
-  "max",
-  "plus",
-  "ultra",
-  "mini",
-  "lite",
-  "se",
-  "fe",
-  "air",
-  "xl",
-]);
+export { VARIANT_WORDS };
 
 export const UNIT_WORDS: ReadonlySet<string> = new Set([
   "gb",
@@ -133,9 +127,29 @@ export function analyzeQuery(
     const alternatives = new Set<string>(slot ? slot.slice(1) : []);
     if (!slot) for (const alt of aliases.expand(value)) alternatives.add(alt);
     alternatives.delete(value);
-    tokens.push({ value, alternatives: [...alternatives], kind: slot ? "word" : kindOf(value) });
+    tokens.push({
+      value,
+      alternatives: [...alternatives],
+      kind: slot ? "word" : kindOf(value),
+      pos: tokens.length,
+    });
   }
-  return { normalized: tokens.map((token) => token.value).join(" "), tokens };
+  const ordered = headTypeLast(tokens, headTypeToken(parsed.text));
+  return { normalized: ordered.map((token) => token.value).join(" "), tokens: ordered };
+}
+
+/**
+ * Urun turu belirteci sonda degilse ve ardindan yalniz niteleyici kelimeler geliyorsa ("dikey supurge
+ * hafif") onu sona alir (karar 0214; slotlardaki `headTypeFirst` ile ayni kural). Model ayrintisi
+ * (sayi, surum eki) izliyorsa dokunmaz ("iphone 17 pro max").
+ */
+export function headTypeLast(tokens: QueryToken[], typeToken: string | null): QueryToken[] {
+  if (typeToken === null || tokens.length < 2) return tokens;
+  const at = tokens.findIndex((token) => token.value.split(" ").includes(typeToken));
+  if (at === -1 || at === tokens.length - 1) return tokens;
+  const trailing = tokens.slice(at + 1);
+  if (trailing.some((token) => token.kind !== "word" || isModelDetail(token.value))) return tokens;
+  return [...tokens.slice(0, at), ...trailing, tokens[at] as QueryToken];
 }
 
 /** Saglayiciya giden slotlar: [deger, ...alternatifler], bas isim sonda. */

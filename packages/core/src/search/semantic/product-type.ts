@@ -303,8 +303,11 @@ function titlePattern(title: string, stems: readonly string[]): string {
   return `(^|[^a-z0-9])(${alternatives.join("|")})($|[^a-z0-9])`;
 }
 
-/** Sorgunun bas isim turune ait baslik deseni (katlanmis basliga uygulanir); tur bilinmiyorsa null. */
-export function requiredTypePattern(query: string): string | null {
+/** Sorgunun bas isim turu eslesmesi (katlanmis belirteci ve basliga uygulanan desenle); tur bilinmiyorsa null. */
+function headTypeMatch(
+  query: string,
+  options: { skipAdjectival?: boolean } = {},
+): (Match & { token: string }) | null {
   const folded = foldForMatch(query)
     .replace(/[^a-z0-9 ]+/g, " ")
     .replace(/\s+/g, " ")
@@ -312,7 +315,7 @@ export function requiredTypePattern(query: string): string | null {
   if (folded === "") return null;
   const tokens = folded.split(" ");
 
-  const matches: Match[] = [];
+  const matches: (Match & { token: string })[] = [];
   const consumed = new Set<number>();
   for (const { phrase, title } of PHRASES) {
     const words = phrase.split(" ");
@@ -323,18 +326,25 @@ export function requiredTypePattern(query: string): string | null {
       });
       if (hit && !words.some((_, offset) => consumed.has(i + offset))) {
         for (let offset = 0; offset < words.length; offset += 1) consumed.add(i + offset);
-        matches.push({ index: i + words.length - 1, title: titlePattern(title, words) });
+        matches.push({
+          index: i + words.length - 1,
+          title: titlePattern(title, words),
+          token: tokens[i + words.length - 1] as string,
+        });
       }
     }
   }
   tokens.forEach((token, index) => {
     if (consumed.has(index) || token.length < 3) return;
+    // "sarjli" (sarjli = pilli/sarj edilebilir) sarj aleti degildir: -li/-lu/-siz/-suz sifat eki alan
+    // govde eslesmesi urun turu sayilmaz (yalniz `headTypeToken`; zorunlu tur deseni degismez).
+    const adjectival = options.skipAdjectival === true && ADJECTIVAL.test(token);
     const type = TYPES.find(
       (t) =>
         t.words?.includes(token) ||
-        t.stems?.some((stem) => token.startsWith(stem) && stem.length >= 4),
+        (!adjectival && t.stems?.some((stem) => token.startsWith(stem) && stem.length >= 4)),
     );
-    if (type) matches.push({ index, title: titlePattern(type.title, type.stems ?? []) });
+    if (type) matches.push({ index, title: titlePattern(type.title, type.stems ?? []), token });
   });
   if (matches.length === 0) return null;
   // Ingilizce ozellik obegi: "drone with camera", "headphones without mic". Edatin ARDINDAKI tur bir
@@ -344,8 +354,24 @@ export function requiredTypePattern(query: string): string | null {
   const candidates = feature === -1 ? matches : matches.filter((match) => match.index < feature);
   if (candidates.length === 0) return null;
   // Bas isim: sorguda en sonda gecen tur (Turkce tamlama; Ingilizce "red shorts" icin de sondaki).
-  const head = candidates.reduce((best, current) => (current.index > best.index ? current : best));
-  return head.title;
+  return candidates.reduce((best, current) => (current.index > best.index ? current : best));
+}
+
+/** Katlanmis Turkce sifat ekleri: kablolu, sarjli, kulaksiz. */
+const ADJECTIVAL = /(?:li|lu|siz|suz)$/;
+
+/** Sorgunun bas isim turune ait baslik deseni (katlanmis basliga uygulanir); tur bilinmiyorsa null. */
+export function requiredTypePattern(query: string): string | null {
+  return headTypeMatch(query)?.title ?? null;
+}
+
+/**
+ * Sorgunun bas isim turunu tasiyan katlanmis belirtec ("dikey supurge hafif" -> "supurge"); tur
+ * bilinmiyorsa null. Gevsetme ve bas isim secimi son kelimeyi degil bunu kullanir: Turkcede bas isim
+ * genellikle sondadir ama "dikey supurge hafif" gibi niteleyiciyle biten sorguda degildir.
+ */
+export function headTypeToken(query: string): string | null {
+  return headTypeMatch(query, { skipAdjectival: true })?.token ?? null;
 }
 
 /** Ardindan gelen ismin ozellik oldugunu belirten Ingilizce edatlar ("for" bilerek yok: "case for phone"). */

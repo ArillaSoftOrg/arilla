@@ -289,7 +289,8 @@ export async function searchWithFallback(
   for (const stage of stages) {
     if (clock() - fallbackStartedAt > budget) {
       truncated = true;
-      break;
+      // Tur-dogru son care adimi, hic sonuc yokken butce dolsa da denenir (karar 0214); digerleri atlanir.
+      if (!(stage.essential && pool.size === 0)) continue;
     }
     stagesTried.push(stage.id);
     lastStage = stage.id;

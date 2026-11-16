@@ -41,7 +41,8 @@ import type { QueryObject } from "./types.ts";
 // 2: olumsuz nitelik zorunlu metinden cikar (karar 0176 Faz 2).
 // 3: baglac/ifade kelimeleri (için, uyumlu, ucuz ...) zorunlu metinden cikar (sozluk denetimi).
 // 4: kategori kaynagi (`category_source`) yazilir (karar 0190); eski satirlar bir kez yeniden ayristirilir.
-export const RESOLVER_VERSION = "4";
+// 5: urun turu sonda degilse ("dikey supurge hafif") bas isim slotu sona alinir (karar 0214).
+export const RESOLVER_VERSION = "5";
 
 /** `parsed` icinde saklanan surum damgasi; okurken disari verilmez. */
 const VERSION_KEY = "_resolver";

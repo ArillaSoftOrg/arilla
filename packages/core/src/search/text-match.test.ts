@@ -6,6 +6,7 @@ import {
   candidatePattern,
   candidateStem,
   foldForMatch,
+  headTypeFirst,
   MAX_QUERY_TOKENS,
   matchTokens,
   TOKEN_MATCH_THRESHOLD,
@@ -125,5 +126,40 @@ describe("aday koku ve regex'i (karar 0129)", () => {
   it("1-2 harfli kelimede regex yok (trigram uretmez; `<<%` kullanilir)", () => {
     expect(candidatePattern("tv")).toBeNull();
     expect(candidatePattern("4k monitor")).toBeNull();
+  });
+});
+
+describe("headTypeFirst: urun turu sonda degilse bas isim slotu sona alinir (karar 0214)", () => {
+  const slot = (...words: string[]) => words.map((w) => [w]);
+
+  it("dikey supurge hafif -> hafif once, supurge sonda", () => {
+    expect(headTypeFirst(slot("dikey", "supurge", "hafif"), "dikey süpürge hafif")).toEqual(
+      slot("dikey", "hafif", "supurge"),
+    );
+  });
+
+  it("tur zaten sondaysa, tur bilinmiyorsa ve tek slotta degismez", () => {
+    expect(headTypeFirst(slot("kablosuz", "kulaklik"), "kablosuz kulaklık")).toEqual(
+      slot("kablosuz", "kulaklik"),
+    );
+    expect(headTypeFirst(slot("zorbalux", "hafif"), "zorbalux hafif")).toEqual(
+      slot("zorbalux", "hafif"),
+    );
+    expect(headTypeFirst(slot("supurge"), "süpürge")).toEqual(slot("supurge"));
+  });
+
+  it("model ayrintisi (sayi, surum eki) izliyorsa dokunmaz: iphone 17 pro max", () => {
+    expect(headTypeFirst(slot("iphone", "17", "pro", "max"), "iphone 17 pro max")).toEqual(
+      slot("iphone", "17", "pro", "max"),
+    );
+  });
+
+  it("es anlamli slot tasinirken alternatifleri korunur", () => {
+    const slots = [["dikey"], ["supurge", "vacuum"], ["hafif", "light"]];
+    expect(headTypeFirst(slots, "dikey süpürge hafif")).toEqual([
+      ["dikey"],
+      ["hafif", "light"],
+      ["supurge", "vacuum"],
+    ]);
   });
 });
