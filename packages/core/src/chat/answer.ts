@@ -150,7 +150,7 @@ const ABSENCE_RE =
 
 /**
  * İnsan denetimi (15 Kas 2026 pilotu, 134 cevap) ile doğrulanan çıkarım kalıpları; her biri etiketli
- * kümede doğru cevap kaybettirmeden kritik hata yakaladı (karar 0214):
+ * kümede doğru cevap kaybettirmeden kritik hata yakaladı (karar 0212):
  * - ihtiyaç varsayan çerçeve: "daha hafif bir çözüm arıyorsanız", "… istersen", "… ihtiyacınız varsa"
  * - fiyat dışı karşılaştırma: "daha hafif/sade/…" (fiyat, teklif ve sayı karşılaştırması serbest)
  * - üretim amacı/etki: "… için üretilmiş", "özel üretilmiş", "geliştirilmiştir", "gereksinimlerini
