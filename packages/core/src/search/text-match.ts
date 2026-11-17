@@ -204,6 +204,9 @@ export const CANDIDATE_LIMIT = 1000;
 /** Yaklasik arama tum kelime/bolum dallari icin bu butceyi paylasir. */
 export const FUZZY_CANDIDATE_LIMIT = 96;
 
+/** Dagitilmis (`crossAnd`) dal basina aday penceresinin tabani. */
+const MIN_CROSS_CAP = 100;
+
 /** "Bir eksik" dallarinin paylasimli sinirinin tabani. */
 const MIN_BRANCH_LIMIT = 200;
 
@@ -358,13 +361,49 @@ function slotMatch(slot: readonly string[], lookup: SlotLookup | undefined, alia
     : slotTitleMatch(slot, alias);
 }
 
-/** Slotun yalnizca baslik kosulu (bolum GIN'i). */
-function slotTitleMatch(slot: readonly string[], alias: string): SQL {
+/** Slotun baslik kosullarinin her biri (bolum GIN'i): alternatif basina bir kosul. */
+function slotTitleArms(slot: readonly string[], alias: string): SQL[] {
   const title = foldedTitleExpr(sql.raw(`${alias}.title`));
-  const titleArms = retrievalArms(slot).map(({ alt, pattern }) =>
+  return retrievalArms(slot).map(({ alt, pattern }) =>
     pattern === null ? sql`${alt}::text <<% ${title}` : sql`${title} ~ ${pattern}::text`,
   );
-  return sql`(${sql.join(titleArms, sql` OR `)})`;
+}
+
+/** Slotun yalnizca baslik kosulu (bolum GIN'i). */
+function slotTitleMatch(slot: readonly string[], alias: string): SQL {
+  return sql`(${sql.join(slotTitleArms(slot, alias), sql` OR `)})`;
+}
+
+/**
+ * Bir dalin slot kosullarinin (her biri VEYA'li alternatifler) VE'si, dagitilmis bicimde: her alternatif
+ * birlesimi ayri bir kosul olur ("(a VEYA b) VE (c VEYA d)" -> a VE c, a VE d, b VE c, b VE d). Boylece
+ * her kosulun BUTUN slotlari TEK bir GIN taramasinin indeks kosuludur. Dagitilmamis halde planlayici
+ * (regex secicilik tahmini ~1 satir) yalniz bir slotun bitmap'ini indeksten alir, oteki slotlari her satirda
+ * regex olarak sinar: "kablosuz kulaklik" -> 12 bin "wireless" satirinin hepsi okunup 450'si kalir
+ * (800 ms; dagitilmis 50 ms, olculdu, karar 0215). Sonuc kumesi ayni; yalniz aday penceresi (LIMIT)
+ * kosullara bolunur. Birlesim sayisi `MAX_CROSS_BRANCHES`i asarsa dagitilmaz (eski biçim).
+ */
+export const MAX_CROSS_BRANCHES = 24;
+function crossAnd(groups: readonly SQL[][]): SQL[] {
+  if (groups.some((group) => group.length === 0)) return [];
+  // Cok alternatifli slotlar ("kadin" 10 alternatif) birlesim sayisini patlatir: en genis slot tek bir
+  // VEYA'li kosula katlanir (indekste degil satirda sinanir), kalan slotlar dagitilir.
+  const parts = groups.map((group) => [...group]);
+  const sizeOf = () => parts.reduce((product, group) => product * group.length, 1);
+  while (sizeOf() > MAX_CROSS_BRANCHES) {
+    let widest = 0;
+    parts.forEach((group, i) => {
+      if (group.length > (parts[widest] as SQL[]).length) widest = i;
+    });
+    const group = parts[widest] as SQL[];
+    if (group.length === 1) break;
+    parts[widest] = [sql`(${sql.join(group, sql` OR `)})`];
+  }
+  let combos: SQL[][] = [[]];
+  for (const group of parts) {
+    combos = combos.flatMap((combo) => group.map((arm) => [...combo, arm]));
+  }
+  return combos.map((combo) => sql.join(combo, sql` AND `));
 }
 
 /** Slotun marka/ana kategori kosulu (btree); eslesme yoksa null (dal uretilmez). */
@@ -549,13 +588,19 @@ export function candidateCtes(
   // baslikta. Kosullar ayni ifade GIN'inde oldugu icin planlayici bitmap duzeyinde
   // kesistirir (marka kolu her slotta olunca tek slotun bitmap'iyle gidip digerlerini
   // satir satir denetliyordu: "bluetooth hoparlor" 3,7 sn, olculdu).
-  const strictConditions: SQL[] =
+  const arms = slots.map((slot) => slotTitleArms(slot, "p"));
+  // Yalniz 2 slotta dagitilir (olculen durum); 3+ slotta dagitma yarar saglamadi (karar 0215).
+  const strictTitle = n === 2 ? crossAnd(arms) : n >= 3 ? [and(titles)] : [];
+  const strictCap = Math.max(MIN_CROSS_CAP, Math.ceil(limit / Math.max(1, strictTitle.length)));
+  const strictConditions: { condition: SQL; cap: number }[] =
     n >= 2
       ? [
-          and(titles),
+          ...strictTitle.map((condition) => ({ condition, cap: strictCap })),
           ...slots.flatMap((_, i) => {
             const byLookup = slotLookupMatch(lookups[i], "p");
-            return byLookup ? [and([byLookup, ...titles.filter((_, j) => j !== i)])] : [];
+            return byLookup
+              ? [{ condition: and([byLookup, ...titles.filter((_, j) => j !== i)]), cap: limit }]
+              : [];
           }),
         ]
       : [];
@@ -565,14 +610,19 @@ export function candidateCtes(
   // ("bas isim VE herhangi biri" 337 bin "case" icinden kapidan gecemeyen 1000 aday
   // getiriyordu, olculdu.) Bas isim markada/kategorideyse niteleyicilerden biri yeter.
   const others = titles.slice(0, -1);
-  const headTitle = titles[n - 1] as SQL;
-  const headConditions: SQL[] =
+  const headCap = n >= 3 ? Math.max(MIN_BRANCH_LIMIT, Math.ceil(limit / (n - 1))) : limit;
+  const headConditions: { condition: SQL; cap: number }[] =
     n === 1
-      ? [slotMatch(head, lookups[0], "p")]
+      ? [{ condition: slotMatch(head, lookups[0], "p"), cap: headCap }]
       : n >= 3
         ? [
-            ...others.map((_, skip) => and([headTitle, ...others.filter((_, j) => j !== skip)])),
-            ...(headLookup ? [and([headLookup, or(others)])] : []),
+            // 3+ slotta dagitma OLCULDU ve yarar saglamadi (karar 0215): planlayici dagitilmis kosullari kendi
+            // bicimine cevirip en secici slotu satir suzgecine birakti ("kadin omuz cantasi" 3,0 -> 4,9 sn).
+            ...others.map((_, skip) => ({
+              condition: and([titles[n - 1] as SQL, ...others.filter((_, j) => j !== skip)]),
+              cap: headCap,
+            })),
+            ...(headLookup ? [{ condition: and([headLookup, or(others)]), cap: headCap }] : []),
           ]
         : [];
   const typoWords = options.fuzzy ? fuzzyWords(slots) : [];
@@ -618,11 +668,12 @@ export function candidateCtes(
       branches.push(branch(headBranch, null));
       return;
     }
-    for (const condition of strictConditions) branches.push(branch(strictBranch, condition));
+    for (const { condition, cap } of strictConditions)
+      branches.push(branch(strictBranch, condition, cap));
     // "Bir eksik" dallari bolum basina toplam butceyi paylasir (5 slotta 4 dal x 1000
     // aday puanlamada 2+ sn tutuyordu, olculdu); tek slotta bas isim dali tam sinirdadir.
-    const headCap = n >= 3 ? Math.max(MIN_BRANCH_LIMIT, Math.ceil(limit / (n - 1))) : limit;
-    for (const condition of headConditions) branches.push(branch(headBranch, condition, headCap));
+    for (const { condition, cap } of headConditions)
+      branches.push(branch(headBranch, condition, cap));
   });
   return sql`
     cand_raw AS (${sql.join(branches, sql` UNION ALL `)}),
