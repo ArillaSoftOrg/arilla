@@ -22,6 +22,8 @@ import { toDiscoveryItems } from "./discovery-adapter.ts";
 import styles from "./home.module.css";
 import {
   DEFAULT_HOME_CATEGORY,
+  HERO_IMAGE_SIZES,
+  heroSrcSet,
   homeCategoryOption,
   selectHomeCategoryImages,
 } from "./home-category-config.ts";
@@ -262,6 +264,8 @@ export default async function HomePage({
         rel="preload"
         as="image"
         href={initialImages.desktop}
+        imageSrcSet={heroSrcSet(initialImages.desktop)}
+        imageSizes={HERO_IMAGE_SIZES}
         media="(min-width: 640px)"
         fetchPriority="high"
       />

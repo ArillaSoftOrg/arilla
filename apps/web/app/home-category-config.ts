@@ -13,6 +13,21 @@ export interface HomeCategoryOption {
   suggestions: readonly HomeCategorySuggestion[];
 }
 
+/** Masaüstü hero görselinin üretilen genişlikleri (`kaliteli-<genişlik>.webp`). */
+export const HOME_HERO_WIDTHS = [1280, 1920, 2560, 3314] as const;
+
+/**
+ * Masaüstü görselinden duyarlı `srcset` üretir: yalnız `-1920.webp` kalıbındaki görsellerin diğer
+ * genişlik varyantları vardır; başkasında `undefined` (tek kaynak aynen kullanılır).
+ */
+export function heroSrcSet(src: string): string | undefined {
+  if (!src.endsWith("-1920.webp")) return undefined;
+  const base = src.slice(0, -"-1920.webp".length);
+  return HOME_HERO_WIDTHS.map((width) => `${base}-${width}.webp ${width}w`).join(", ");
+}
+
+export const HERO_IMAGE_SIZES = "100vw";
+
 export const DEFAULT_HOME_CATEGORY: HomeCategoryId = "parfum";
 
 export const HOME_CATEGORY_OPTIONS = [
@@ -23,10 +38,7 @@ export const HOME_CATEGORY_OPTIONS = [
       "/görsel/optimized/mobilya-koltuk-kosesi.webp",
       "/görsel/optimized/mobilya-bej-naturmort.webp",
     ],
-    desktopImageSrcs: [
-      "/görsel/desktop/optimized/mobilya-minimalist-salon.webp",
-      "/görsel/desktop/optimized/mobilya-modern-salon-dekoru.webp",
-    ],
+    desktopImageSrcs: ["/görsel/desktop/optimized/kaliteli-1920.webp"],
     suggestions: [
       { label: "Berjer koltuk", query: "Modern bir berjer koltuk" },
       { label: "Çalışma masası", query: "Küçük bir çalışma masası" },
@@ -40,11 +52,7 @@ export const HOME_CATEGORY_OPTIONS = [
       "/görsel/optimized/moda-siyah-canta.webp",
       "/görsel/optimized/moda-deri-orgu.webp",
     ],
-    desktopImageSrcs: [
-      "/görsel/desktop/optimized/moda-luks-vinyet.webp",
-      "/görsel/desktop/optimized/moda-bej-canta-aksesuar.webp",
-      "/görsel/desktop/optimized/moda-aksesuar-giysi.webp",
-    ],
+    desktopImageSrcs: ["/görsel/desktop/optimized/kaliteli-1920.webp"],
     suggestions: [
       { label: "Siyah omuz çantası", query: "Zarif siyah bir omuz çantası" },
       { label: "Beyaz spor ayakkabı", query: "Günlük beyaz spor ayakkabı" },
@@ -60,11 +68,7 @@ export const HOME_CATEGORY_OPTIONS = [
       "/görsel/optimized/parfum-incir.webp",
       "/görsel/optimized/parfum-yesil-altin.webp",
     ],
-    desktopImageSrcs: [
-      "/görsel/desktop/optimized/parfum-altin-narenciye.webp",
-      "/görsel/desktop/optimized/parfum-botanik-kompozisyon.webp",
-      "/görsel/desktop/optimized/parfum-amber-beyaz-cicek.webp",
-    ],
+    desktopImageSrcs: ["/görsel/desktop/optimized/kaliteli-1920.webp"],
     suggestions: [
       { label: "Kalıcı odunsu parfüm", query: "Kalıcı odunsu bir parfüm" },
       { label: "Günlük ferah koku", query: "Günlük kullanıma uygun ferah bir koku" },

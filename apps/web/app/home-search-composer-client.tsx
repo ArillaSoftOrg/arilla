@@ -7,7 +7,7 @@ import {
   type SearchComposerRecentProduct,
 } from "@arilla/ui";
 import { type ReactNode, useId, useRef, useState } from "react";
-import { selectHomeCategoryImages } from "./home-category-config.ts";
+import { HERO_IMAGE_SIZES, heroSrcSet, selectHomeCategoryImages } from "./home-category-config.ts";
 import {
   DEFAULT_HOME_CATEGORY,
   HOME_CATEGORY_OPTIONS,
@@ -160,14 +160,19 @@ export function HomeSearchComposer({
           />
           <source
             media="(min-width: 640px)"
-            srcSet={imageFailed ? undefined : categoryImages.desktop}
+            srcSet={
+              imageFailed
+                ? undefined
+                : (heroSrcSet(categoryImages.desktop) ?? categoryImages.desktop)
+            }
+            sizes={HERO_IMAGE_SIZES}
           />
           <img
             className={styles.heroImage}
             src={imageFailed ? TRANSPARENT_PIXEL : categoryImages.desktop}
             alt=""
-            width="1600"
-            height="900"
+            width="1920"
+            height="1080"
             loading="eager"
             fetchPriority="high"
             onError={() => setImageFailed(true)}
