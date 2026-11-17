@@ -124,10 +124,17 @@
     background: linear-gradient(180deg, var(--feature-bg), var(--surface));
   }
 
+  /*
+   * Görsel ve karartma yalnız İLK EKRAN kadardır (tam genişlik, kenar boşluğu yok). Bölüm ilk
+   * ekrandan uzunsa (öneriler, son ürünler) `cover` görseli uzun kutuya göre büyütüp kırpmasın.
+   */
   .heroPicture,
   .heroOverlay {
     position: absolute;
-    inset: 0;
+    inset-block-start: 0;
+    inset-inline: 0;
+    block-size: 100svh;
+    max-block-size: 100%;
     z-index: -2;
     display: block;
     pointer-events: none;
