@@ -1,8 +1,10 @@
+import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 import type { LexiconEntry } from "./lexicon.ts";
 import {
   allowedMisses,
   buildTextSlots,
+  candidateCtes,
   candidatePattern,
   candidateStem,
   foldForMatch,
@@ -161,5 +163,40 @@ describe("headTypeFirst: urun turu sonda degilse bas isim slotu sona alinir (kar
       ["hafif", "light"],
       ["supurge", "vacuum"],
     ]);
+  });
+});
+
+describe("candidateCtes: slot kosullari dagitilir (karar 0215)", () => {
+  const render = (slots: string[][]) => new PgDialect().sqlToQuery(candidateCtes(slots, {})).sql;
+  const branches = (sqlText: string) => (sqlText.match(/SELECT p\.id,/g) ?? []).length;
+
+  it("2 slot: her alternatif birlesimi ayri dal, her dalda BUTUN slotlar indeks kosulu", () => {
+    const text = render([
+      ["kablosuz", "wireless"],
+      ["kulaklik", "headphone", "earbuds"],
+    ]);
+    // 2 x 3 birlesim x 2 bolum
+    expect(branches(text)).toBe(12);
+    expect(text).not.toMatch(/\) OR \(.*\) AND \(/);
+  });
+
+  it("tek slot ve 3+ slot dagitilmaz (3+ slotta dagitma olculdu, yarar saglamadi)", () => {
+    expect(branches(render([["kulaklik", "headphone"]]))).toBe(2);
+    // 3 slot: bas isim ailesi n-1 = 2 dal + siki 1 dal, bolum basina; alternatif sayisindan bagimsiz
+    const three = render([
+      ["a1x", "a2x", "a3x"],
+      ["bb1", "bb2"],
+      ["cc1", "cc2", "cc3", "cc4"],
+    ]);
+    expect(branches(three)).toBe(2 * (1 + 2));
+  });
+
+  it("birlesim sayisi sinirini asan 2 slotta en genis slot VEYA'li tek kosula katlanir", () => {
+    const wide = Array.from(
+      { length: 30 },
+      (_, i) => `kelime${String.fromCharCode(97 + (i % 26))}${i}`,
+    );
+    const text = render([wide, ["kulaklik", "headphone"]]);
+    expect(branches(text)).toBe(2 * 2);
   });
 });
