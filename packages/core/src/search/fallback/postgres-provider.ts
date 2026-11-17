@@ -31,6 +31,7 @@ function toQueryObject(query: SearchQuery): QueryObject {
     unparsed: query.slots.map((slot) => slot[0] ?? "").join(" "),
     confidence: 1,
     text_slots: query.slots,
+    ...(query.scope === "priced" ? { candidate_scope: "priced" as const } : {}),
   };
 }
 
@@ -39,6 +40,9 @@ function toQueryObject(query: SearchQuery): QueryObject {
  * edilir (57014) ve hata sinirina duser; baglanti havuzu sinirsiz tutulmaz.
  */
 export const TEXT_SEARCH_TIMEOUT_MS = 5_000;
+
+/** Fiyatli-urun geri dususunun sorgu tavani (ms); fiyatli bolum olculen ~ms'lerde biter (karar 0216). */
+export const PRICED_RETRY_TIMEOUT_MS = 2_000;
 
 function isTimeout(error: unknown): boolean {
   const code =
@@ -98,36 +102,62 @@ export function createPostgresSearchProvider(
     options.statementTimeoutMs === undefined
       ? null
       : Math.max(1, Math.floor(options.statementTimeoutMs));
+  async function run(
+    query: SearchQuery,
+    queryObject: QueryObject,
+    limitMs: number | null,
+  ): Promise<ProviderPage> {
+    const page = { limit: query.limit, offset: query.offset };
+    if (query.budgetMs !== undefined) return searchWithinBudget(db, query, queryObject, page);
+    if (!query.fuzzy && limitMs === null) {
+      const result = await search(db, queryObject, page);
+      return { items: result.items, total: result.total, totalCapped: result.totalCapped };
+    }
+    // GUC'lar yalnizca bu islem icin degisir (`is_local`), havuzdaki baglanti
+    // temiz doner. `<<%` indeks on filtresi `pg_trgm.strict_word_similarity_threshold`a
+    // bakar; bulanik adimda dusurulur.
+    return db.transaction(async (tx) => {
+      if (limitMs !== null) {
+        await tx.execute(sql`SELECT set_config('statement_timeout', ${String(limitMs)}, true)`);
+      }
+      if (!query.fuzzy) {
+        const result = await search(tx as unknown as Database, queryObject, page);
+        return { items: result.items, total: result.total, totalCapped: result.totalCapped };
+      }
+      await tx.execute(
+        sql`SELECT set_config('pg_trgm.strict_word_similarity_threshold', ${String(FUZZY_TOKEN_THRESHOLD)}, true)`,
+      );
+      const result = await search(tx as unknown as Database, queryObject, {
+        ...page,
+        tokenThreshold: FUZZY_TOKEN_THRESHOLD,
+      });
+      return { items: result.items, total: result.total, totalCapped: result.totalCapped };
+    });
+  }
   return {
     name: "postgres",
     async search(query: SearchQuery): Promise<ProviderPage> {
-      const queryObject = toQueryObject(query);
-      const page = { limit: query.limit, offset: query.offset };
-      if (query.budgetMs !== undefined) return searchWithinBudget(db, query, queryObject, page);
-      if (!query.fuzzy && timeoutMs === null) {
-        const result = await search(db, queryObject, page);
-        return { items: result.items, total: result.total, totalCapped: result.totalCapped };
-      }
-      // GUC'lar yalnizca bu islem icin degisir (`is_local`), havuzdaki baglanti
-      // temiz doner. `<<%` indeks on filtresi `pg_trgm.strict_word_similarity_threshold`a
-      // bakar; bulanik adimda dusurulur.
-      return db.transaction(async (tx) => {
-        if (timeoutMs !== null) {
-          await tx.execute(sql`SELECT set_config('statement_timeout', ${String(timeoutMs)}, true)`);
-        }
-        if (!query.fuzzy) {
-          const result = await search(tx as unknown as Database, queryObject, page);
-          return { items: result.items, total: result.total, totalCapped: result.totalCapped };
-        }
-        await tx.execute(
-          sql`SELECT set_config('pg_trgm.strict_word_similarity_threshold', ${String(FUZZY_TOKEN_THRESHOLD)}, true)`,
+      try {
+        return await run(query, toQueryObject(query), timeoutMs);
+      } catch (error) {
+        // Yavas exact sorgusu (3 slot, cok yaygin bas isim): hata sayfasi yerine yalniz fiyatli urunleri kisa
+        // bir sinirla dene (karar 0216). Bulanik, butceli ve metinsiz sorgular kendi yolunda kalir.
+        if (
+          !isTimeout(error) ||
+          timeoutMs === null ||
+          query.fuzzy ||
+          query.scope !== undefined ||
+          query.slots.length === 0
+        )
+          throw error;
+        const retry: SearchQuery = { ...query, scope: "priced" };
+        const page = await run(
+          retry,
+          toQueryObject(retry),
+          Math.min(timeoutMs, PRICED_RETRY_TIMEOUT_MS),
         );
-        const result = await search(tx as unknown as Database, queryObject, {
-          ...page,
-          tokenThreshold: FUZZY_TOKEN_THRESHOLD,
-        });
-        return { items: result.items, total: result.total, totalCapped: result.totalCapped };
-      });
+        return { ...page, partial: true };
+      }
     },
   };
 }

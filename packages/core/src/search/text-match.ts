@@ -534,6 +534,8 @@ export interface CandidateOptions {
    * urun (sekmenin kendi kosulu; aksi halde sinirli dal yurt disi ilanlarla dolar).
    */
   bestDeal?: boolean | undefined;
+  /** Yalniz fiyatli (`offer_count > 0`) bolum; yavas yurt disi bolumu atlanir (karar 0216). */
+  pricedOnly?: boolean | undefined;
 }
 
 /**
@@ -576,7 +578,9 @@ export function candidateCtes(
           SELECT 1 FROM product_price_stats ps
           WHERE ps.product_id = p.id AND ps.list_price_inflated = FALSE)`,
       ]
-    : PARTITIONS;
+    : options.pricedOnly
+      ? PARTITIONS.slice(0, 1)
+      : PARTITIONS;
   const n = slots.length;
   const lookups = options.lookups ?? [];
   const headLookup = slotLookupMatch(lookups[n - 1], "p");

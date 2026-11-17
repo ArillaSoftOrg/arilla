@@ -287,6 +287,7 @@ export function textMatch(
   const ctes = candidateCtes(slots, query.filters, {
     limit: candidateLimit,
     bestDeal,
+    pricedOnly: query.candidate_scope === "priced",
     fuzzy,
     lookups,
     excludedTitlePattern: productTitleExclusionPattern(query.text),
