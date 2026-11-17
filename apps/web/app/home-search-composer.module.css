@@ -112,15 +112,20 @@
     padding-inline: var(--gutter);
   }
 
-  .categoryScene[data-home-category="mobilya"] {
+  /*
+   * Kategori degradesi (yedek: görsel yüklenmezse/yüklenirken) YALNIZ görselin kapladığı ilk
+   * ekranın arkasındadır. Sahnenin geri kalanı (ör. "Alışverişe devam et") sayfa zemini
+   * `--paper` ile aynıdır: alttaki "Keşfet" bölümüyle aynı renk.
+   */
+  .categoryScene[data-home-category="mobilya"] .heroPicture {
     background: linear-gradient(180deg, var(--tint-warm), var(--footer-canvas));
   }
 
-  .categoryScene[data-home-category="moda"] {
+  .categoryScene[data-home-category="moda"] .heroPicture {
     background: linear-gradient(180deg, var(--feature-bg), var(--ink-secondary));
   }
 
-  .categoryScene[data-home-category="parfum"] {
+  .categoryScene[data-home-category="parfum"] .heroPicture {
     background: linear-gradient(180deg, var(--feature-bg), var(--surface));
   }
 

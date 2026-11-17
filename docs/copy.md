@@ -22,7 +22,6 @@ Kurallar `design.md` içinde: cümle düzeni, ALL CAPS yok, "satın al" yok,
 | `home.trends_empty_title` | Güncel seçkiler hazırlanıyor. |
 | `home.trends_empty_description` | Bu sırada aradığın ürünü yukarıdaki arama kutusundan bulabilirsin. |
 | `home.discovery_title` | Arilla'da keşfedilenler |
-| `home.discovery_subtitle` | Farklı kategorilerden öne çıkan ürünler, tek bakışta. |
 
 ## Nasıl çalışır
 

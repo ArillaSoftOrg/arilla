@@ -15,7 +15,6 @@ export const HOME_COPY = {
   trendsEmptyTitle: "Güncel seçkiler hazırlanıyor.", // home.trends_empty_title
   trendsEmptyDescription: "Bu sırada aradığın ürünü yukarıdaki arama kutusundan bulabilirsin.", // home.trends_empty_description
   discoveryTitle: "Keşfet", // home.discovery_title
-  discoverySubtitle: "Farklı kategorilerden öne çıkan ürünler, tek bakışta.", // home.discovery_subtitle
   howItWorksTitle: "ManiCepte nasıl çalışır?", // home.how_it_works_title
   recentPriceLabel: "Fiyatı incele",
   howItWorksSubtitle:

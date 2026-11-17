@@ -312,11 +312,7 @@ export default async function HomePage({
 
         <Section id="kesfet" aria-labelledby="kesfet-baslik" className={styles.anchored}>
           <Container size="wide">
-            <HomeSectionHeading
-              id="kesfet-baslik"
-              title={HOME_COPY.discoveryTitle}
-              description={HOME_COPY.discoverySubtitle}
-            />
+            <HomeSectionHeading id="kesfet-baslik" title={HOME_COPY.discoveryTitle} />
             {discoveryItems.length > 0 ? (
               <DiscoveryGrid items={discoveryItems} labelledBy="kesfet-baslik" />
             ) : (
