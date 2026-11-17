@@ -186,6 +186,8 @@ export async function searchWithFallback(
       ? toSearchQuery(parsed, sort, VERIFY_WINDOW, 0)
       : toSearchQuery(parsed, sort, pageSize, offset),
   );
+  // Tam sorgu zaman asimina ugradi, yalniz fiyatli urunler geldi (karar 0216): sonuc eksik, toplam alt sinir.
+  if (first.partial) truncated = true;
 
   if (!verify && first.items.length > 0) {
     return finish(
@@ -194,7 +196,7 @@ export async function searchWithFallback(
       first.total,
       "exact",
       null,
-      first.totalCapped === true,
+      first.totalCapped === true || first.partial === true,
     );
   }
   // Sayfa sinirinin otesi: "sonuc yok" degil, fallback gostermeyiz.

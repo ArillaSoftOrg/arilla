@@ -63,6 +63,8 @@ export interface QueryObject {
    * yoktur — o zaman `unparsed` tokenlarindan uretilir.
    */
   text_slots?: string[][];
+  /** `"priced"`: aday kumesi yalniz teklifi olan urunler (zaman asimi geri dususu, karar 0216). */
+  candidate_scope?: "priced";
   /**
    * Dogrulanmis IntentV2 rolu (karar 0197): yalniz siralama; onbellege yazilmaz, `applyIntentPlan` ekler.
    * `accessory`/`part` ise ana urun aksesuar kademesi uygulanmaz.

@@ -304,4 +304,30 @@ describe("searchWithFallback", () => {
     expect(outcome.trace.truncated).toBe(true);
     expect(outcome.mode).toBe("empty");
   });
+
+  it("exact sorgu zaman asiminda saglayicinin eksik (fiyatli) sonucu gosterilir: iz truncated, toplam alt sinir (karar 0216)", async () => {
+    const item = {
+      productId: 7,
+      title: "Kadin omuz cantasi siyah",
+      brand: null,
+      imageUrl: null,
+      price: null,
+    };
+    const provider = {
+      name: "partial",
+      async search() {
+        return { items: [item], total: 1, partial: true };
+      },
+    } as unknown as Parameters<typeof searchWithFallback>[0];
+    const outcome = await searchWithFallback(provider, {
+      parsed: parsed("kadin omuz cantasi"),
+      sort: "balanced",
+      page: 1,
+      pageSize: 6,
+    });
+    expect(outcome.mode).toBe("results");
+    expect(outcome.items).toHaveLength(1);
+    expect(outcome.trace.truncated).toBe(true);
+    expect(outcome.totalCapped).toBe(true);
+  });
 });

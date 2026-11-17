@@ -29,11 +29,18 @@ export interface SearchQuery {
    * calistirir; asilirsa HATA FIRLATMAZ, bos sayfa ve `timedOut` doner (istegin kalani surer).
    */
   budgetMs?: number | undefined;
+  /**
+   * `"priced"`: yalniz fiyatli (teklifi olan) urunler aday olur. Yavas bir exact sorgunun zaman asimindan sonra
+   * saglayici bunu kendisi dener; sonuc eksik kumedir (`partial`), bos sayfa degil (karar 0216).
+   */
+  scope?: "priced" | undefined;
 }
 
 export interface ProviderPage {
   /** `budgetMs` asildi: adim atlandi, `items` bos. */
   timedOut?: boolean;
+  /** Tam sorgu zaman asimina ugradi; `items` yalniz fiyatli urunlerden olusan eksik kume (karar 0216). */
+  partial?: boolean;
   items: SearchResultItem[];
   /** Saglayicinin bildirdigi toplam (sayfalamadan once). */
   total: number;

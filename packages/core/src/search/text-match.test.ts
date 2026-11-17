@@ -180,6 +180,15 @@ describe("candidateCtes: slot kosullari dagitilir (karar 0215)", () => {
     expect(text).not.toMatch(/\) OR \(.*\) AND \(/);
   });
 
+  it("pricedOnly: yalniz fiyatli bolum (offer_count > 0), yurt disi bolumu yok (karar 0216)", () => {
+    const text = new PgDialect().sqlToQuery(
+      candidateCtes([["kadin"], ["omuz"], ["canta"]], {}, { pricedOnly: true }),
+    ).sql;
+    expect(text).toContain("p.offer_count > 0");
+    expect(text).not.toContain("p.offer_count = 0");
+    expect(branches(text)).toBe(1 + 2);
+  });
+
   it("tek slot ve 3+ slot dagitilmaz (3+ slotta dagitma olculdu, yarar saglamadi)", () => {
     expect(branches(render([["kulaklik", "headphone"]]))).toBe(2);
     // 3 slot: bas isim ailesi n-1 = 2 dal + siki 1 dal, bolum basina; alternatif sayisindan bagimsiz
