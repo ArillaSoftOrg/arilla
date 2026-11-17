@@ -13,7 +13,7 @@ import {
 } from "@arilla/core";
 import { loginPathWithNext } from "@arilla/core/auth-redirect";
 import { getDatabase } from "@arilla/db";
-import { Container, DiscoveryGrid, EmptyState, HomeHero, Section } from "@arilla/ui";
+import { Container, DiscoveryGrid, EmptyState, Section } from "@arilla/ui";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { COMING_SOON_COPY } from "./coming-soon-copy.ts";
@@ -280,13 +280,6 @@ export default async function HomePage({
             imageVariantSeed={imageVariantSeed}
             recentProducts={recentProducts}
             searchClassName={styles.searchScreen}
-            beforeSearch={
-              <HomeHero
-                titleId="anasayfa-baslik"
-                titleLead={HOME_COPY.heroTitleLead}
-                titleAccent={HOME_COPY.heroTitleAccent}
-              />
-            }
           />
         </Section>
 

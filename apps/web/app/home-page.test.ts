@@ -29,20 +29,15 @@ vi.mock("./lib/early-access-progress.ts", () => ({
 }));
 vi.mock("./home-recent-products.ts", () => ({ loadRecentProducts: async () => [] }));
 vi.mock("./home-search-composer-client.tsx", () => ({
-  HomeSearchComposer: ({
-    beforeSearch,
-    afterSearch,
-  }: {
-    beforeSearch?: ReactNode;
-    afterSearch?: ReactNode;
-  }) =>
+  // Başlık artık kompozitörün içinde (kategori durumuna bağlı); sayfa yalnızca onu çerçeveler.
+  HomeSearchComposer: ({ afterSearch }: { afterSearch?: ReactNode }) =>
     createElement(
       "div",
       null,
       createElement(
         "search",
         null,
-        beforeSearch,
+        createElement("h1", { id: "anasayfa-baslik" }, "Parfüm için ne arıyorsun?"),
         createElement("form", { "aria-label": "Ürün ara" }),
       ),
       afterSearch,
@@ -100,8 +95,11 @@ describe("urun acik ana sayfa bilgi mimarisi", () => {
   it("ilk arama alaninda baslik vardir; robot kaldirilmistir", async () => {
     const html = renderToStaticMarkup(await HomePage());
     const hero = html.slice(html.indexOf("<section"), html.indexOf("</section>"));
-    expect(hero).toContain(HOME_COPY.heroTitleLead);
-    expect(hero).toContain(HOME_COPY.heroTitleAccent);
+    // Başlık "[Kategori] için ne arıyorsun?": kategori açılır liste başlığın içindedir.
+    expect(hero).toMatch(/<h1[^>]*id="anasayfa-baslik"[^>]*>.*Parfüm.*için ne arıyorsun?/s);
+    expect(hero).toContain(HOME_COPY.heroTitleSuffix);
+    expect(hero).not.toContain(HOME_COPY.heroTitleLead);
+    expect(hero).not.toContain(HOME_COPY.heroTitleAccent);
     expect(hero).not.toContain(HOME_COPY.heroSubtitle);
     expect(hero).not.toContain("robot-welcome.png");
     expect(hero).not.toContain("robot-research.png");

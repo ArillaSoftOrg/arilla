@@ -74,6 +74,16 @@
   display: contents;
 }
 
+/* Hero başlığı: "[Kategori] için ne arıyorsun?"; kategori başlığın içinde açılır liste. */
+.heroTitle {
+  margin: 0;
+  font-size: clamp(1.625rem, 1.15rem + 2vw, 2.5rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
 /* Ana AI sahnesi mobil ve masaustunde ayni bilesen hiyerarsisini kullanir.
    Gorseller simdilik yalniz telefonda istenir; masaustunde kategori gradient'i
    sonraki arka plan gorselleri icin duzenin yerini korur. */
@@ -83,7 +93,9 @@
     isolation: isolate;
     width: 100%;
     min-width: 0;
-    min-height: calc(100svh + 4rem);
+    /* Hero tam bir ilk ekrandır: görsel, karartma ve sohbet kutusu bunun içinde kalır; sonraki
+       bölümler sayfa yüzeyinde (--paper) başlar. */
+    min-height: 100svh;
     margin-inline: 0;
     overflow: visible;
   }
@@ -94,7 +106,8 @@
   }
 
   .categoryScene .categorySearch {
-    --hero-top: 22svh;
+    /* Başlık + sohbet kutusu yukarıda: üstte yalnız menü payı (>= 5,25 rem) ve ekran yüksekliğine göre pay. */
+    --hero-top: clamp(5.25rem, 15svh, 8rem);
     isolation: isolate;
     width: 100%;
     max-width: none;
@@ -188,14 +201,17 @@
     justify-items: center;
     gap: var(--space-2);
     min-width: 0;
+    /* Başlık ile sohbet kutusu arası: telefonda 24 px; geniş ekranlarda 32-40 px (içerik boşluğu 16 px + bu). */
+    margin-block-end: var(--space-2);
     color: var(--on-media);
     text-align: center;
     text-shadow: 0 2px 22px var(--media-scrim);
   }
 
+  /* Başlığın içinde satır içi: "[Kategori ▾] için ne arıyorsun?"; başlık iki satıra bölünebilir. */
   .categoryPicker {
     position: relative;
-    display: block;
+    display: inline-block;
     z-index: calc(var(--z-raised) + 1);
   }
 
@@ -204,16 +220,19 @@
     align-items: center;
     justify-content: center;
     gap: var(--space-2);
-    min-height: var(--size-touch-target);
-    padding: 0 var(--space-1) var(--space-1);
+    min-height: 0;
+    padding: 0 var(--space-1);
     border: 0;
-    border-block-end: 2px solid color-mix(in srgb, var(--on-media) 78%, transparent);
+    border-block-end: 3px solid color-mix(in srgb, var(--on-media) 78%, transparent);
     background: transparent;
-    color: var(--on-media);
+    color: inherit;
     font: inherit;
-    font-size: var(--text-body-lg);
-    font-weight: var(--font-weight-semibold);
+    text-shadow: inherit;
     cursor: pointer;
+  }
+
+  .heroTitleSuffix {
+    white-space: normal;
   }
 
   .categoryTrigger:focus-visible,
@@ -248,6 +267,12 @@
     box-shadow: var(--shadow-md);
     backdrop-filter: blur(18px);
     transform: translateX(-50%);
+    /* Başlığın içinde olduğu için başlık tipografisi miras alınmasın. */
+    font-size: var(--text-body);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-normal);
+    text-align: start;
+    text-shadow: none;
   }
 
   .categoryOption {
@@ -336,7 +361,12 @@
 
 @media (min-width: 640px) {
   .categoryScene .categorySearch {
-    --hero-top: 22vh;
+    --hero-top: clamp(6rem, 17svh, 10rem);
+  }
+
+  /* Başlık - sohbet kutusu aralığı: 16 (içerik boşluğu) + 16 = 32 px. */
+  .heroHeading {
+    margin-block-end: var(--space-4);
   }
 
   .categoryContent > form[data-variant="default"] {
@@ -345,6 +375,11 @@
 }
 
 @media (min-width: 1024px) {
+  /* Masaüstü: 16 + 24 = 40 px. */
+  .heroHeading {
+    margin-block-end: var(--space-6);
+  }
+
   .categoryContent > form[data-variant="default"] {
     max-width: min(960px, calc(100vw - (2 * var(--gutter))));
   }
@@ -352,27 +387,23 @@
 
 @media (min-width: 1600px) and (min-height: 950px) {
   .categoryScene .categorySearch {
-    --hero-top: 25vh;
+    --hero-top: clamp(7rem, 19svh, 12rem);
   }
 }
 
 @media (min-width: 2100px) and (min-height: 1150px) {
   .categoryScene .categorySearch {
-    --hero-top: 28vh;
+    --hero-top: clamp(8rem, 21svh, 14rem);
   }
 }
 
 @media (max-width: 359.98px) {
   .categoryScene .categorySearch {
-    --hero-top: clamp(6.5rem, 22svh, 8rem);
+    --hero-top: clamp(5rem, 14svh, 7rem);
   }
 
   .categoryContent {
     gap: var(--space-3);
-  }
-
-  .categoryTrigger {
-    font-size: var(--text-body);
   }
 
   .categoryContent > form[data-variant="default"] {

@@ -31,7 +31,7 @@ export function HomeCategoryPicker({
   onChange: (value: HomeCategoryId) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLSpanElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const listboxId = useId();
@@ -83,12 +83,11 @@ export function HomeCategoryPicker({
   }
 
   return (
-    <div ref={rootRef} className={styles.categoryPicker}>
+    <span ref={rootRef} className={styles.categoryPicker}>
       <button
         ref={triggerRef}
         type="button"
         className={styles.categoryTrigger}
-        aria-label="Alışveriş kategorisi"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listboxId}
@@ -104,7 +103,7 @@ export function HomeCategoryPicker({
       </button>
 
       {open ? (
-        <div
+        <span
           id={listboxId}
           role="listbox"
           aria-label="Kategori seç"
@@ -135,8 +134,8 @@ export function HomeCategoryPicker({
               ) : null}
             </button>
           ))}
-        </div>
+        </span>
       ) : null}
-    </div>
+    </span>
   );
 }

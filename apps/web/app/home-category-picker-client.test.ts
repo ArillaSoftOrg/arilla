@@ -37,7 +37,7 @@ describe("mobil ana sayfa kategori secici", () => {
   });
 
   it("Parfum ile baslar ve secim yapildiginda kontrollu degeri degistirir", async () => {
-    const trigger = host.querySelector<HTMLButtonElement>('[aria-label="Alışveriş kategorisi"]');
+    const trigger = host.querySelector<HTMLButtonElement>('[aria-haspopup="listbox"]');
     expect(trigger?.textContent).toContain("Parfüm");
     expect(trigger?.getAttribute("aria-expanded")).toBe("false");
 
@@ -54,7 +54,7 @@ describe("mobil ana sayfa kategori secici", () => {
   });
 
   it("ok tuslariyla secenekler arasinda dolasir ve Escape ile tetikleyiciye doner", async () => {
-    const trigger = host.querySelector<HTMLButtonElement>('[aria-label="Alışveriş kategorisi"]');
+    const trigger = host.querySelector<HTMLButtonElement>('[aria-haspopup="listbox"]');
     await act(async () => trigger?.click());
     const options = Array.from(host.querySelectorAll<HTMLButtonElement>('[role="option"]'));
     expect(document.activeElement?.textContent).toContain("Parfüm");
@@ -74,7 +74,7 @@ describe("mobil ana sayfa kategori secici", () => {
   });
 
   it("disariya pointer basildiginda listeyi kapatir", async () => {
-    const trigger = host.querySelector<HTMLButtonElement>('[aria-label="Alışveriş kategorisi"]');
+    const trigger = host.querySelector<HTMLButtonElement>('[aria-haspopup="listbox"]');
     await act(async () => trigger?.click());
     expect(host.querySelector('[role="listbox"]')).not.toBeNull();
 

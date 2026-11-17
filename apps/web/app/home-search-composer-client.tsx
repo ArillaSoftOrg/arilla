@@ -12,10 +12,10 @@ import {
   DEFAULT_HOME_CATEGORY,
   HOME_CATEGORY_OPTIONS,
   type HomeCategoryId,
-  HomeCategoryPicker,
 } from "./home-category-picker-client.tsx";
 import { useHomeComposerSubmission } from "./home-composer-submission.ts";
 import { HOME_COPY } from "./home-copy.ts";
+import { HomeHeroHeading } from "./home-hero-heading.tsx";
 import { IMAGE_CHAT_COPY } from "./home-image-chat.ts";
 import styles from "./home-search-composer.module.css";
 import { LoginGateModal } from "./login-gate-modal-client.tsx";
@@ -46,13 +46,11 @@ export function HomeSearchComposer({
   imageEntryAvailable = false,
   imageConsent = false,
   recentProducts,
-  beforeSearch,
   searchClassName,
   afterSearch,
   imageVariantSeed = 0,
 }: {
   /** Ilk ekrandaki baslik; arama davranisindan bagimsiz sunum. */
-  beforeSearch?: ReactNode;
   searchClassName?: string;
   /** Ana kutunun altinda, gecmis urunlerinden once gosterilen yardim baglantisi. */
   afterSearch?: ReactNode;
@@ -193,8 +191,7 @@ export function HomeSearchComposer({
             chipsTitle={HOME_COPY.searchIdeasTitle}
             beforeSearch={
               <div className={styles.heroHeading}>
-                {beforeSearch}
-                <HomeCategoryPicker
+                <HomeHeroHeading
                   value={categoryId}
                   onChange={(nextCategory) => {
                     setImageFailed(false);

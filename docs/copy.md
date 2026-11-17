@@ -13,6 +13,7 @@ Kurallar `design.md` içinde: cümle düzeni, ALL CAPS yok, "satın al" yok,
 | `home.tagline` | Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır. |
 | `home.hero_title_lead` | Alışveriş mi? (başlık aynı alanda "ManiCepte." ile dönüşümlü; ~1,6 sn / ~2 sn) |
 | `home.hero_title_accent` | ManiCepte. |
+| `home.hero_title_suffix` | için ne arıyorsun? (ana sayfa hero başlığı: "[Kategori] için ne arıyorsun?"; kategori başlığın içinde açılır liste) |
 | `home.hero_subline` | Ne aradığını anlat, görselini yükle veya linkini bırak. |
 | `home.search_ideas_title` | Arama fikirleri |
 | `home.how_it_works_status` | Yakında |

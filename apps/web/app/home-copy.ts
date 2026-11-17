@@ -6,6 +6,8 @@ export const HOME_COPY = {
   betaLabel: "Beta", // home.beta_label
   heroTitleLead: "Doğru seçeneği", // home.hero_title_lead
   heroTitleAccent: "birlikte bulalım.", // home.hero_title_accent
+  // Ana sayfa hero başlığı: "[Kategori] için ne arıyorsun?" (kategori açılır liste, başlığın içinde).
+  heroTitleSuffix: "için ne arıyorsun?", // home.hero_title_suffix
   // Hero'da cizilmez; alt bilgi aciklamasi olarak kullanilir.
   heroSubtitle: "Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır.", // home.tagline
   // Kullanicinin gercek son aramalari; gecmis yoksa bolum hic cizilmez.
