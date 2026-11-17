@@ -982,25 +982,20 @@
   }
 }
 
-/* Karar 0217: Kutuphane menusu temayi/hesabi sagda toplar; arkasindakiler otomatik marj almaz. */
+/* Karar 0217: Kutuphane menusu sagda toplanir; temayi, yardimci linki ve hesabi yanina alir. */
 .librarySlot {
   display: inline-flex;
   flex: 0 0 auto;
   margin-inline-start: auto;
 }
 
-.librarySlot ~ .themeSlot,
-.librarySlot ~ .utility,
-.librarySlot ~ .themeSlot ~ .account,
-.librarySlot ~ .themeSlot ~ .accountAvatar,
-.librarySlot ~ .account,
-.librarySlot ~ .accountAvatar {
+.librarySlot ~ .themeSlot {
   margin-inline-start: 0;
 }
 
 @media (max-width: 639.98px) {
-  .librarySlot ~ .account,
-  .librarySlot ~ .accountAvatar {
+  .header .librarySlot ~ .account,
+  .header .librarySlot ~ .accountAvatar {
     margin-inline-start: 0;
   }
 }
