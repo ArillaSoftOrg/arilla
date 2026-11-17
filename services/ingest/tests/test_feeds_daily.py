@@ -436,8 +436,19 @@ def test_tum_denemeler_kesikse_kosu_partial_ve_basarisiz_cikar(
     monkeypatch.setenv("JOB_RUN_TRIGGER", "cron")
     network_module.register(NETWORK, lambda: env.net)
     try:
+        # Bu test yedek penceresini sinamaz (o davranis test_feeds_daily_multi.py'de enjekte edilen
+        # saatle sinanir); gercek saat yedek penceresine (23:50-02:05 UTC) denk gelirse koşu duraklar.
         code = main(
-            ["daily", "--merchant", SLUG, "--parallel-downloads", "1", "--retry-wait-seconds", "0"]
+            [
+                "daily",
+                "--merchant",
+                SLUG,
+                "--parallel-downloads",
+                "1",
+                "--retry-wait-seconds",
+                "0",
+                "--ignore-backup-window",
+            ]
         )
     finally:
         network_module._REGISTRY.pop(NETWORK, None)
@@ -781,7 +792,10 @@ def test_cli_job_run_kaydi_cron_tetigi_ve_cikis_kodu(
     monkeypatch.setenv("JOB_RUN_TRIGGER", "cron")
     network_module.register(NETWORK, lambda: env.net)
     try:
-        code = main(["daily", "--merchant", SLUG, "--parallel-downloads", "1"])
+        # Gercek saatten bagimsiz: yedek penceresi kesmesi kapali (bkz. yukaridaki not).
+        code = main(
+            ["daily", "--merchant", SLUG, "--parallel-downloads", "1", "--ignore-backup-window"]
+        )
     finally:
         network_module._REGISTRY.pop(NETWORK, None)
     assert code == 0
