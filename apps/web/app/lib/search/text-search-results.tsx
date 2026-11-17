@@ -1,6 +1,7 @@
 import {
   applyIntentV2,
   buildSearchSummary,
+  canAccessProduct,
   createPostgresSearchProvider,
   createSeedAliasSource,
   formatTraceForLog,
@@ -9,12 +10,14 @@ import {
   prepareSearchFilters,
   type QueryObject,
   recordActivity,
+  recordLibraryCandidates,
   recordSearchAndCheckWall,
   recordTextSearchQuality,
   resolveQuery,
   type SearchSummaryIntent,
   type SortMode,
   searchWithFallback,
+  selectLibraryCandidates,
   serveSemantic,
   TEXT_SEARCH_TIMEOUT_MS,
   withExplicitUiCategory,
@@ -183,6 +186,31 @@ export async function TextSearchResults({
       });
     } catch (error) {
       console.error("[ara] activity failed", error instanceof Error ? error.name : "unknown");
+    }
+  }
+
+  // Karar 0217: Kütüphane. İlk 3 gerçek ürün aday; rıza/tekrar/sınır core'da. Yanıttan sonra
+  // çalışır, aramayı yavaşlatmaz ve hatası aramayı bozmaz. Sorgu metni saklanmaz.
+  if (user && canAccessProduct(user)) {
+    const candidates = selectLibraryCandidates({
+      mode: outcome.mode,
+      items,
+      sort: effectiveSort,
+      isNewSearch,
+      page,
+    });
+    if (candidates.length > 0) {
+      const userId = user.id;
+      after(async () => {
+        try {
+          await recordLibraryCandidates(db, { userId, candidates });
+        } catch (error) {
+          console.error(
+            "[kutuphane] record failed",
+            error instanceof Error ? error.name : "unknown",
+          );
+        }
+      });
     }
   }
 

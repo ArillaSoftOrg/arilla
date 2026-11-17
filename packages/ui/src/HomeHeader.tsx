@@ -58,6 +58,8 @@ export interface HomeHeaderProps {
    * ayni durumu okur.
    */
   themeControl?: ReactNode;
+  /** Karar 0217: Kutuphane menusu (cagiran saglar; yalniz oturumlu ve urune erisebilen kullanici). */
+  libraryControl?: ReactNode;
   /** Paneldeki tema satirinin gorunur etiketi (dugmenin kendi adi zaten var). */
   themeControlLabel?: string;
   /**
@@ -116,6 +118,7 @@ export function HomeHeader({
   accountAvatarUrl,
   accountAvatarLabel,
   themeControl,
+  libraryControl,
   themeControlLabel,
   utilityLink,
   utilityInMenuOnly = false,
@@ -297,6 +300,8 @@ export function HomeHeader({
             ))}
           </nav>
         ) : null}
+
+        {libraryControl ? <div className={styles.librarySlot}>{libraryControl}</div> : null}
 
         {themeControl ? <div className={styles.themeSlot}>{themeControl}</div> : null}
 

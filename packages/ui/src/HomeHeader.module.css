@@ -981,3 +981,26 @@
     row-gap: 0;
   }
 }
+
+/* Karar 0217: Kutuphane menusu temayi/hesabi sagda toplar; arkasindakiler otomatik marj almaz. */
+.librarySlot {
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+}
+
+.librarySlot ~ .themeSlot,
+.librarySlot ~ .utility,
+.librarySlot ~ .themeSlot ~ .account,
+.librarySlot ~ .themeSlot ~ .accountAvatar,
+.librarySlot ~ .account,
+.librarySlot ~ .accountAvatar {
+  margin-inline-start: 0;
+}
+
+@media (max-width: 639.98px) {
+  .librarySlot ~ .account,
+  .librarySlot ~ .accountAvatar {
+    margin-inline-start: 0;
+  }
+}

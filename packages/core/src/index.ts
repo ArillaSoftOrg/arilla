@@ -10,6 +10,7 @@ export { MIGRATIONS_DIR } from "@arilla/db";
 export * from "./access/index.ts";
 export * from "./account/index.ts";
 export * from "./activity/index.ts";
+export * from "./library/index.ts";
 export * from "./admin/index.ts";
 export * from "./analytics-ga4/index.ts";
 export * from "./analytics-umami/index.ts";

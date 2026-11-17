@@ -21,6 +21,7 @@ edilmeli.
 | Arama hakları ve bonus defteri | `ai_quota_day`, `bonus_account`, `bonus_ledger`, `ai_search_charge` | Sözleşmenin ifası (hak hesabı) | Hesap silinene kadar (0047) |
 | Davet kaydı | `referral` | Sözleşmenin ifası (davet ödülü) | Hesap silinene kadar; silme sonrası kimlik özeti tutulmaz (0047) |
 | Gezinme geçmişi | `product_view` | **Açık rıza** | Son 50 kayıt, hesap silinince silinir |
+| Kütüphane (aramalarda öne çıkan ürünler) | `library_item` | **Açık rıza** (`personalization`) | Yalnız kullanıcı-ürün ilişkisi, sorgu metni yok; en çok 60 satır, 180 gün, hesap/ürün silinince silinir (karar 0217) |
 | Kaydedilenler, alarmlar | `saved_item`, `alert` | Sözleşmenin ifası | Hesap silinene kadar |
 | Beden profili | `user_size_profile` | Açık rıza | Hesap silinene kadar |
 | Tıklama ve dönüşüm | `click`, `conversion` | Meşru menfaat + sözleşme | 5 yıl (mali mevzuat) |

@@ -5,7 +5,7 @@ import {
   EARLY_ACCESS_SIGNUP_PATH,
 } from "@arilla/core";
 import type { FooterGroup, HomeHeaderAppearance, HomeHeaderNavItem } from "@arilla/ui";
-import { Container, HomeHeader, SiteFooter, SkipLink } from "@arilla/ui";
+import { Container, HomeHeader, LibraryMenu, SiteFooter, SkipLink } from "@arilla/ui";
 import type { ReactNode } from "react";
 import { logoutAction } from "./cikis-actions.ts";
 import { COMING_SOON_COPY } from "./coming-soon-copy.ts";
@@ -21,6 +21,8 @@ import {
   SUBPAGE_SECTION_LINKS,
   siteNavItems,
 } from "./home-footer-groups.ts";
+import { clearLibraryAction, removeLibraryItemAction } from "./kutuphane/actions.ts";
+import { LIBRARY_COPY } from "./kutuphane/library-copy.ts";
 import { verifySession } from "./lib/dal.ts";
 import { readThemePreference } from "./lib/theme-cookie.ts";
 import styles from "./public-site-shell.module.css";
@@ -161,6 +163,16 @@ export async function PublicSiteShell({
         accountAvatarLabel={user?.displayName ?? user?.email ?? SITE_BRAND}
         // Rol doğrulanmış sunucu oturumundan gelir. Bağlantı görünürlüğü,
         // yönetim sayfalarındaki bağımsız yetki denetimlerinin yerine geçmez.
+        libraryControl={
+          user && productAccess ? (
+            <LibraryMenu
+              copy={LIBRARY_COPY}
+              consentHref="/hesap"
+              onRemove={removeLibraryItemAction}
+              onClear={clearLibraryAction}
+            />
+          ) : undefined
+        }
         themeControl={<ThemeToggleControl initialTheme={initialTheme} />}
         themeControlLabel={HOME_COPY.themeToggleLabel}
         utilityLink={
