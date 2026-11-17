@@ -4,6 +4,7 @@ import {
   purgeExpiredActivity,
   purgeExpiredConversationsSafely,
   purgeExpiredFeedbackCommentsSafely,
+  purgeExpiredLibrary,
   purgeExpiredLinkSourceEmbeddingsSafely,
   purgeExpiredQueryInterpretationsSafely,
   purgeJobRuns,
@@ -70,7 +71,10 @@ export async function GET(request: Request): Promise<Response> {
       const feedbackComments = await purgeExpiredFeedbackCommentsSafely(db);
       // Karar 0090: süresi dolmuş link kaynağı görsel izi (yalıtılmış adım).
       const linkSources = await purgeExpiredLinkSourceEmbeddingsSafely(db);
+      // Karar 0217: Kütüphane 180 gün saklanır (yalıtılmış adım).
+      const library = await purgeExpiredLibrary(db).catch(() => ({ deleted: 0, truncated: true }));
       return {
+        library,
         ...result,
         conversations,
         feedbackComments,
@@ -86,6 +90,7 @@ export async function GET(request: Request): Promise<Response> {
     (r) => ({
       status:
         r.truncated ||
+        r.library.truncated ||
         r.jobRuns.truncated ||
         r.queryInterpretations.truncated ||
         r.queryInterpretations.failed !== null ||

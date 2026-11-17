@@ -347,7 +347,7 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
   {
     id: "user_activity",
     label: "Kullanıcı aktivitesi ve gezinme",
-    tables: ["user_activity_event", "user_activity_summary", "product_view"],
+    tables: ["user_activity_event", "user_activity_summary", "product_view", "library_item"],
     status: "visible",
     adminPaths: ["/yonetim/kullanicilar", "/yonetim/yolculuk"],
     gaps: [{ signal: "Anonim ziyaret ve kimliksiz huni", status: "unmeasured" }],

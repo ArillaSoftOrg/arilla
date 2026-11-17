@@ -32,6 +32,7 @@ export * from "./Input.tsx";
 export * from "./icons.tsx";
 export * from "./image-variants.ts";
 export * from "./LegalPageLayout.tsx";
+export * from "./LibraryMenu.tsx";
 export * from "./ListPriceNote.tsx";
 export * from "./LoginModal.tsx";
 export type { SpaceStep } from "./layout.ts";

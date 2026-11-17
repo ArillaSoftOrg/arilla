@@ -40,6 +40,7 @@ export * from "./errors/index.ts";
 export * from "./feedback/index.ts";
 export * from "./forms/index.ts";
 export * from "./health/index.ts";
+export * from "./library/index.ts";
 export * from "./marketing/index.ts";
 export * from "./media/index.ts";
 export * from "./offers/index.ts";

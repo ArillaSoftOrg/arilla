@@ -987,3 +987,24 @@ onboarding formu `0043_forms.sql`). Sabit arayüz metinleri
 | `survey.responded_title` | Bu formu zaten yanıtladın. |
 | `survey.error_required` | Bu soru zorunlu. |
 
+## Kütüphane (karar 0217)
+
+| Anahtar | Metin |
+| --- | --- |
+| `library.trigger` | Kütüphane |
+| `library.title` | Kütüphane |
+| `library.panel_label` | Kütüphane: aramalarında öne çıkan ürünler |
+| `library.close` | Kütüphaneyi kapat |
+| `library.all` | Tümü |
+| `library.categories_label` | Kategoriler |
+| `library.search_label` / `library.search_placeholder` | Kütüphanede ara |
+| `library.loading` | Yükleniyor |
+| `library.load_more` | Daha fazla göster |
+| `library.remove` | Kütüphaneden kaldır |
+| `library.clear` | Tümünü temizle |
+| `library.empty` | Aramalarında öne çıkan ürünler burada birikir. |
+| `library.empty_filtered` | Bu filtreyle eşleşen ürün yok. |
+| `library.consent_off` | Kütüphane için kişiselleştirme iznini açman gerekir. |
+| `library.consent_link` | İzinleri aç |
+| `library.error` | Kütüphane şu an yüklenemedi. |
+| `library.retry` | Tekrar dene |

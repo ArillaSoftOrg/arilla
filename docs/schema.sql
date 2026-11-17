@@ -1476,6 +1476,22 @@ CREATE TABLE product_view (
 CREATE INDEX product_view_user_idx ON product_view (user_id, viewed_at DESC)
     WHERE user_id IS NOT NULL;
 
+-- Kütüphane (0117, karar 0217): aramalarda ilk 3'te çıkan ürünlerin kişisel vitrini.
+-- Sorgu/başlık/görsel/fiyat/kategori SAKLANMAZ; okurken güncel katalogdan gelir.
+-- Rıza: personalization. Kullanıcı başına en çok 60 satır, 180 gün.
+CREATE TABLE library_item (
+    user_id          BIGINT      NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+    product_id       BIGINT      NOT NULL REFERENCES product(id) ON DELETE CASCADE,
+    first_added_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_surfaced_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    best_rank        SMALLINT    NOT NULL CHECK (best_rank BETWEEN 1 AND 3),
+    surfaced_count   INTEGER     NOT NULL DEFAULT 1 CHECK (surfaced_count >= 1),
+    PRIMARY KEY (user_id, product_id)
+);
+CREATE INDEX library_item_user_recent_idx
+    ON library_item (user_id, last_surfaced_at DESC, product_id DESC);
+CREATE INDEX library_item_surfaced_idx ON library_item (last_surfaced_at);
+
 -- Beden profili. Bir kez girilir, tüm sonuçlarda "senin bedenin var" filtresi
 -- çalışır. Modada satın alma kararının kendisi budur.
 CREATE TABLE user_size_profile (

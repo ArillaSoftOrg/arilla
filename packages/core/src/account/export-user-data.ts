@@ -40,7 +40,7 @@ import {
   userConsent,
   userSizeProfile,
 } from "@arilla/db";
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
 
 export class UserNotFoundError extends Error {
   constructor() {
@@ -69,6 +69,8 @@ export interface UserDataExport {
     createdAt: Date;
   }>;
   history: Array<{ productId: number; productTitle: string; viewedAt: Date }>;
+  /** Kütüphane (karar 0217): aramalarda öne çıkan ürünler; yalnız ürün ilişkisi. */
+  library: Array<{ productId: number; productTitle: string; addedAt: Date; lastSurfacedAt: Date }>;
   sizeProfile: Array<{ categoryPath: string; sizeNorm: string }>;
   /** `source`/`textVersion` 0037 öncesi satırlarda `null` ("sürümsüz kayıt"); kayıt yine geçerlidir. */
   consents: Array<{
@@ -441,6 +443,28 @@ export async function exportUserData(db: Database, userId: number): Promise<User
       .orderBy(desc(referral.createdAt)),
   ]);
 
+  // Karar 0217: Kütüphane yalnız kullanıcı-ürün ilişkisidir (sorgu metni saklanmaz).
+  const libraryRows = (
+    await db.execute(sql`
+      SELECT li.product_id, p.title, li.first_added_at, li.last_surfaced_at
+        FROM library_item li JOIN product p ON p.id = li.product_id
+       WHERE li.user_id = ${userId}
+       ORDER BY li.last_surfaced_at DESC, li.product_id DESC`)
+  ).rows.map((row) => {
+    const r = row as {
+      product_id: string | number;
+      title: string;
+      first_added_at: Date | string;
+      last_surfaced_at: Date | string;
+    };
+    return {
+      productId: Number(r.product_id),
+      productTitle: r.title,
+      addedAt: new Date(r.first_added_at),
+      lastSurfacedAt: new Date(r.last_surfaced_at),
+    };
+  });
+
   return {
     profile: {
       publicId: user.publicId,
@@ -453,6 +477,7 @@ export async function exportUserData(db: Database, userId: number): Promise<User
     savedItems: savedRows,
     alerts: alertRows,
     history: historyRows,
+    library: libraryRows,
     sizeProfile: sizeRows,
     consents: consentRows,
     authHistory: authRows,

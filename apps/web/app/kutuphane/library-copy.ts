@@ -1,0 +1,21 @@
+/** docs/copy.md "Kütüphane". Ekranda görünen metinler; ALL CAPS ve yasaklı sözcük yok. */
+export const LIBRARY_COPY = {
+  trigger: "Kütüphane",
+  title: "Kütüphane",
+  panelLabel: "Kütüphane: aramalarında öne çıkan ürünler",
+  close: "Kütüphaneyi kapat",
+  all: "Tümü",
+  categoriesLabel: "Kategoriler",
+  searchLabel: "Kütüphanede ara",
+  searchPlaceholder: "Kütüphanede ara",
+  loading: "Yükleniyor",
+  loadMore: "Daha fazla göster",
+  remove: "Kütüphaneden kaldır",
+  clear: "Tümünü temizle",
+  empty: "Aramalarında öne çıkan ürünler burada birikir.",
+  emptyFiltered: "Bu filtreyle eşleşen ürün yok.",
+  consentOff: "Kütüphane için kişiselleştirme iznini açman gerekir.",
+  consentLink: "İzinleri aç",
+  error: "Kütüphane şu an yüklenemedi.",
+  retry: "Tekrar dene",
+} as const;

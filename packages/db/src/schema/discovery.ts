@@ -126,3 +126,17 @@ export const discoverySlot = pgTable(
   },
   (table) => [primaryKey({ columns: [table.slotDate, table.position] })],
 );
+
+/** 0117_library_item.sql karsiligi (karar 0217). Yalniz kullanici-urun iliskisi. */
+export const libraryItem = pgTable(
+  "library_item",
+  {
+    userId: bigint("user_id", { mode: "number" }).notNull(),
+    productId: bigint("product_id", { mode: "number" }).notNull(),
+    firstAddedAt: timestamp("first_added_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSurfacedAt: timestamp("last_surfaced_at", { withTimezone: true }).notNull().defaultNow(),
+    bestRank: smallint("best_rank").notNull(),
+    surfacedCount: integer("surfaced_count").notNull().default(1),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.productId] })],
+);
