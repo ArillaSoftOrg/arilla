@@ -306,6 +306,9 @@ jobs:
           UMAMI_BASE_URL: ${{ vars.UMAMI_BASE_URL }}
           UMAMI_WEBSITE_ID: ${{ vars.UMAMI_WEBSITE_ID }}
           UMAMI_TRACKER_SCRIPT_NAME: ${{ vars.UMAMI_TRACKER_SCRIPT_NAME }}
+          GTM_CONTAINER_ID: ${{ vars.GTM_CONTAINER_ID }}
+          CLARITY_PROJECT_ID: ${{ vars.CLARITY_PROJECT_ID }}
+          GTM_LOAD_BEFORE_CONSENT: ${{ vars.GTM_LOAD_BEFORE_CONSENT }}
         run: |
           set -euo pipefail
           publish=true
@@ -317,6 +320,9 @@ jobs:
               echo "UMAMI_BASE_URL=$UMAMI_BASE_URL"
               echo "UMAMI_WEBSITE_ID=$UMAMI_WEBSITE_ID"
               echo "UMAMI_TRACKER_SCRIPT_NAME=$UMAMI_TRACKER_SCRIPT_NAME"
+              echo "GTM_CONTAINER_ID=$GTM_CONTAINER_ID"
+              echo "CLARITY_PROJECT_ID=$CLARITY_PROJECT_ID"
+              echo "GTM_LOAD_BEFORE_CONSENT=$GTM_LOAD_BEFORE_CONSENT"
             fi
             echo 'ARGS_EOF'
           } >> "$GITHUB_OUTPUT"
