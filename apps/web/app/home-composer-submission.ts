@@ -7,6 +7,7 @@ import {
   outcomeForNewChat,
   validateAttachmentFile,
 } from "./home-image-chat.ts";
+import { trackEvent } from "./lib/track-event.ts";
 import { startChatBootstrapAction } from "./sohbet/actions.ts";
 import { browserStorage } from "./sohbet/chat-bootstrap.ts";
 import { type BootstrapImageStore, browserImageStore } from "./sohbet/chat-bootstrap-image.ts";
@@ -125,6 +126,9 @@ export function useHomeComposerSubmission({
    */
   function startInNewTab(text: string): boolean {
     setChatError(null);
+    // Karar 0219: arama metni süzgeçten geçer (e-posta/telefon benzeri gitmez).
+    trackEvent("search", { search_term: text });
+    trackEvent("ai_chat_start", { interaction_type: "home_composer" });
     const ok = openChatInNewTab(text, {
       open: (href) => window.open(href, "_blank"),
       navigate: (href) => window.location.assign(href),
@@ -144,6 +148,7 @@ export function useHomeComposerSubmission({
     sendingRef.current = true;
     setSending(true);
     setChatError(null);
+    trackEvent("ai_chat_start", { interaction_type: "home_image" });
     try {
       const via = chatInNewTab
         ? await openChatInNewTabWithImage(

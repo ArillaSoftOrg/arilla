@@ -56,6 +56,7 @@ import { ExpandableTitle } from "./expandable-title-client.tsx";
 import { PriceHistoryClient } from "./price-history-client.tsx";
 import { PriceHistorySummary } from "./price-history-summary.tsx";
 import { ProductActionsClient } from "./product-actions-client.tsx";
+import { ProductAnalytics } from "./product-analytics-client.tsx";
 import { ProductGalleryClient } from "./product-gallery-client.tsx";
 import styles from "./product-page.module.css";
 import { SizeSelectorClient } from "./size-selector-client.tsx";
@@ -444,6 +445,13 @@ export default async function ProductPage({
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(productJsonLd) }}
       />
 
+      <ProductAnalytics
+        itemId={product.productId}
+        itemName={product.title}
+        itemCategory={product.categoryName ?? null}
+        storeName={primaryOffer?.merchantName ?? null}
+      />
+
       <div className={styles.hero}>
         {/* 1. Ürün görseli (galeri; karar 0073) */}
         <ProductGalleryClient
@@ -697,6 +705,9 @@ export default async function ProductPage({
           {/* 8. Kaydet / alarm kur */}
           <ProductActionsClient
             productId={product.productId}
+            itemName={product.title}
+            itemCategory={product.categoryName ?? null}
+            storeName={primaryOffer?.merchantName ?? null}
             isInStock={merchantOffers.some((offer) => offer.inStock || offer.stockUnknown)}
             currentPriceTRY={
               variantMode

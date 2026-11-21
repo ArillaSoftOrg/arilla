@@ -219,7 +219,16 @@ ziyaretçi **analitik çerez rızası** verdiyse `ConsentGate` arkasında yükle
 rıza geri alınınca gönderim anında durur. Otomatik izleme kapalıdır; yalnızca
 arındırılmış sayfa yolu (GA4 ile aynı süzgeç, güvenli `utm_*` korunur) ile
 sayfa görüntüleme ve `docs/events.md`'de tanımlı olaylar gönderilir. API
-anahtarı yalnızca sunucuda durur. Başka hiçbir üçüncü taraf betik bu
+anahtarı yalnızca sunucuda durur.
+
+**Üçüncü istisna — Google Tag Manager (karar 0219):** yalnızca
+`GTM_CONTAINER_ID` tanımlıysa; Consent Mode v2 varsayılanı (hepsi `denied`,
+reklam sinyalleri kalıcı) GTM'den önce basılır, GA4 etiketi GTM içindedir
+(sitede doğrudan gtag.js yok). Yönetim alanında yüklenmez.
+**Dördüncü istisna — Microsoft Clarity (karar 0219):** yalnızca
+`CLARITY_PROJECT_ID` tanımlıysa ve ziyaretçi **analitik çerez rızası**
+verdiyse; rıza yokken hiç yüklenmez. Olaylar yalnızca `docs/events.md`
+"GTM / dataLayer" tablosundadır. Başka hiçbir üçüncü taraf betik bu
 istisnalardan yararlanamaz.
 
 ## Dil ve içerik

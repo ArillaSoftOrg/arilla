@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useCallback, useEffect, useRef } from "react";
+import { trackEvent } from "../lib/track-event.ts";
 import styles from "./discover.module.css";
 
 /** `grid-auto-rows` ile aynı olmalı (discover.module.css `--row-unit`). */
@@ -66,10 +67,17 @@ export function DiscoverMasonry({
   }, [layout]);
 
   return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: delegasyon; tıklanan bağlantılar zaten klavyeyle etkinleşir.
     <ul
       ref={listRef}
       className={styles.grid}
       aria-labelledby={labelledBy}
+      onClick={(event) => {
+        // Karar 0219: yalnızca etkileşim türü; hangi ürün olduğu gönderilmez.
+        if (event.target instanceof Element && event.target.closest("a[href]")) {
+          trackEvent("discover_interaction", { interaction_type: "card_click" });
+        }
+      }}
       onLoadCapture={(event) => {
         if (event.target instanceof HTMLImageElement) {
           applyRatio(event.target);

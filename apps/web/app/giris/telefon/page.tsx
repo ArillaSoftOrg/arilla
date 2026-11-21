@@ -81,6 +81,7 @@ export default async function TelefonGirisPage({
             </p>
             <form action="/giris/telefon/dogrula" method="post" className={styles.form}>
               <Input
+                data-clarity-mask="True"
                 label={COPY.codeLabel}
                 name="code"
                 type="text"
@@ -108,6 +109,7 @@ export default async function TelefonGirisPage({
           <form action="/giris/telefon/kod-gonder" method="post" className={styles.form}>
             <input type="hidden" name="next" value={safeNext} />
             <Input
+              data-clarity-mask="True"
               label={COPY.phoneLabel}
               hint={COPY.phoneHint}
               name="phone"

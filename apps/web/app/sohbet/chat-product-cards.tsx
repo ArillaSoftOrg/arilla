@@ -1,6 +1,7 @@
 "use client";
 
 import { Button, CloseIcon, HeartIcon, ProductCard } from "@arilla/ui";
+import { trackEvent } from "../lib/track-event.ts";
 import { useChatProductTools } from "./chat-product-context.tsx";
 import type { ChatToolProduct } from "./chat-product-model.ts";
 import styles from "./chat-product-tools.module.css";
@@ -63,7 +64,15 @@ export function ChatCompareTray() {
       <Button
         variant="accent"
         disabled={tools.selected.length < 2}
-        onClick={() => tools.openPanel({ kind: "compare" })}
+        onClick={() => {
+          if (!tools.demoNotice) {
+            trackEvent("compare_products", {
+              compared_count: tools.selected.length,
+              ...(tools.selected[0] ? { item_id: String(tools.selected[0].productId) } : {}),
+            });
+          }
+          tools.openPanel({ kind: "compare" });
+        }}
       >
         Karşılaştır
       </Button>

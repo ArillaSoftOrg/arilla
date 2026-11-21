@@ -86,7 +86,7 @@ const nextConfig: NextConfig = {
       // yeniden dogrulama yaptirir. Dosya adlari hash'siz oldugundan bir
       // hafta + arka planda yenileme; kullaniciya ozel icerik degildir.
       {
-        source: "/:dir(fonts|ways)/:file*",
+        source: "/:dir(fonts|ways|mascot|brand|how-it-works|blog|görsel)/:file*",
         headers: [
           {
             key: "Cache-Control",
@@ -96,6 +96,8 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Karar 0219: hero (LCP) PNG'leri AVIF/WebP olarak, boyuta uygun servis edilir.
+  images: { formats: ["image/avif", "image/webp"] },
   poweredByHeader: false,
   experimental: {
     serverActions: {

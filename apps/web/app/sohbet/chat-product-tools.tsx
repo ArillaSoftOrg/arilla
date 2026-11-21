@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { trackEvent } from "../lib/track-event.ts";
 import { ChatProductToolsContext, type ChatToolPanel } from "./chat-product-context.tsx";
 import {
   CHAT_TOOL_ERRORS,
@@ -106,6 +107,12 @@ export function ChatProductToolsProvider({
               : current.savedProductIds.filter((id) => id !== product.productId),
           },
       );
+      if (!demoNotice) {
+        trackEvent(result.saved ? "save_item" : "remove_saved_item", {
+          item_id: String(product.productId),
+          item_name: product.title,
+        });
+      }
       setMessage(result.saved ? "Ürün kaydedildi." : "Ürün kaydettiklerinden kaldırıldı.");
     } catch {
       setMessage(CHAT_TOOL_ERRORS.unavailable);

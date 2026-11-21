@@ -103,6 +103,7 @@ export function ResendVerificationForm({
       {heading ? <p className={styles.sentBody}>{COPY.resendHeading}</p> : null}
       <input type="hidden" name="next" value={next} />
       <Input
+        data-clarity-mask="True"
         label={COPY.emailLabel}
         name="email"
         type="email"
@@ -130,6 +131,7 @@ export function LoginForm({ next }: { next: string }) {
       <input type="hidden" name="next" value={next} />
       <FormNotice state={state} />
       <Input
+        data-clarity-mask="True"
         label={COPY.emailLabel}
         name="email"
         type="email"
@@ -166,6 +168,7 @@ export function RegisterForm({ next }: { next: string }) {
       <input type="hidden" name="next" value={next} />
       <FormNotice state={state} />
       <Input
+        data-clarity-mask="True"
         label={COPY.emailLabel}
         name="email"
         type="email"
@@ -192,6 +195,7 @@ export function ForgotPasswordForm() {
     <form action={action} className={styles.form}>
       <FormNotice state={state} />
       <Input
+        data-clarity-mask="True"
         label={COPY.emailLabel}
         name="email"
         type="email"

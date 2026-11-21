@@ -22,6 +22,7 @@ import {
 } from "react";
 import { ErrorView } from "../error-view.tsx";
 import { validateAttachmentFile } from "../home-image-chat.ts";
+import { trackEvent } from "../lib/track-event.ts";
 import {
   getTurnStatusAction,
   runTurnAction,
@@ -330,6 +331,12 @@ export function ChatInteractive({
       }
       keyRef.current = null;
       sent = true;
+      // Karar 0219: yalnızca etkileşim türü; mesaj içeriği hiçbir olaya girmez.
+      if (request.kind === "text")
+        trackEvent("ai_chat_message", { interaction_type: "user_message" });
+      else if (request.kind === "option") {
+        trackEvent("ai_chat_message", { interaction_type: "suggestion_click" });
+      }
       clearStaged();
       setDraft("");
       setCustom("");
@@ -546,6 +553,7 @@ export function ChatInteractive({
                 <label className={styles.customLabel}>
                   <VisuallyHidden as="span">{CHAT_COPY.otherInputLabel}</VisuallyHidden>
                   <input
+                    data-clarity-mask="True"
                     ref={customInputRef}
                     className={styles.customInput}
                     type="text"

@@ -4,12 +4,17 @@ import { classifyError, type PublicError } from "@arilla/core/errors";
 import { Button, Input } from "@arilla/ui";
 import { useRef, useState } from "react";
 import { ErrorView } from "../../error-view.tsx";
+import { trackEvent } from "../../lib/track-event.ts";
 import { LoginGateModal } from "../../login-gate-modal-client.tsx";
 import { createAlertAction, saveItemAction } from "./actions.ts";
 import styles from "./product-page.module.css";
 
 export interface ProductActionsClientProps {
   productId: number;
+  /** Karar 0216: yalnızca `save_item` ölçümü için. */
+  itemName?: string;
+  itemCategory?: string | null;
+  storeName?: string | null;
   isInStock: boolean;
   /** Girdi alanının ön dolgusu için, TL cinsinden (tam sayı). */
   currentPriceTRY: number | null;
@@ -31,6 +36,9 @@ type AlertState = "idle" | "pending" | "created";
  */
 export function ProductActionsClient({
   productId,
+  itemName,
+  itemCategory,
+  storeName,
   isInStock,
   currentPriceTRY,
   children,
@@ -78,6 +86,12 @@ export function ProductActionsClient({
       return;
     }
     setSaveState("saved");
+    trackEvent("save_item", {
+      item_id: String(productId),
+      ...(itemName ? { item_name: itemName } : {}),
+      ...(itemCategory ? { item_category: itemCategory } : {}),
+      ...(storeName ? { store_name: storeName } : {}),
+    });
   }
 
   async function handleAlertButtonClick(event: React.MouseEvent<HTMLButtonElement>) {

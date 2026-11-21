@@ -4,6 +4,7 @@ import type { SavedPriceChange } from "@arilla/core";
 import { HeartIcon, ProductCard } from "@arilla/ui";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { trackEvent } from "../lib/track-event.ts";
 import { removeSavedItemAction } from "./actions.ts";
 import styles from "./page.module.css";
 import { SAVED_COPY } from "./saved-copy.ts";
@@ -35,6 +36,7 @@ export function SavedItemsListClient({ items }: { items: SavedItemsListClientIte
     setError(null);
     try {
       await removeSavedItemAction(productId);
+      trackEvent("remove_saved_item", { item_id: String(productId) });
       router.refresh();
     } catch {
       setError(SAVED_COPY.removeError);

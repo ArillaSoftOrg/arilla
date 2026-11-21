@@ -9,6 +9,8 @@ export interface ProductDetail {
   slug: string;
   title: string;
   brandName: string | null;
+  /** Kategori adı (yalnızca analitik etiketi; yoksa null). */
+  categoryName?: string | null;
   modelKey: string | null;
   color: string | null;
   primaryImageUrl: string | null;
