@@ -60,6 +60,10 @@ ARG GA4_MEASUREMENT_ID=""
 ARG UMAMI_BASE_URL=""
 ARG UMAMI_WEBSITE_ID=""
 ARG UMAMI_TRACKER_SCRIPT_NAME=""
+# Karar 0219: GTM + Clarity (sir DEGIL; CSP derlemede uretilir). Bos = kapali.
+ARG GTM_CONTAINER_ID=""
+ARG CLARITY_PROJECT_ID=""
+ARG GTM_LOAD_BEFORE_CONSENT=""
 # Uretim imaji: APP_URL olmadan derleme baslamaz (yanlis canonical ile canliya
 # cikmaktan iyidir). `DEPLOY_ENV=production` derlemede de uretim kapilarini acar
 # (https zorunlu, localhost reddedilir; packages/core/src/config/app-url.ts).
@@ -71,7 +75,7 @@ ENV NODE_ENV=production \
     GA4_MEASUREMENT_ID=${GA4_MEASUREMENT_ID} \
     UMAMI_BASE_URL=${UMAMI_BASE_URL} \
     UMAMI_WEBSITE_ID=${UMAMI_WEBSITE_ID} \
-    UMAMI_TRACKER_SCRIPT_NAME=${UMAMI_TRACKER_SCRIPT_NAME}
+    UMAMI_TRACKER_SCRIPT_NAME=${UMAMI_TRACKER_SCRIPT_NAME} \n    GTM_CONTAINER_ID=${GTM_CONTAINER_ID} \n    CLARITY_PROJECT_ID=${CLARITY_PROJECT_ID} \n    GTM_LOAD_BEFORE_CONSENT=${GTM_LOAD_BEFORE_CONSENT}
 COPY tsconfig.base.json ./
 COPY apps/web apps/web
 COPY packages packages
