@@ -3,7 +3,7 @@
  * yonlendirilir. Hicbir URL olmez." Once guncel slug denenir, bulunamazsa
  * gecmis tablosunda aranir.
  */
-import { brand, type Database, product, productSlugHistory } from "@arilla/db";
+import { brand, category, type Database, product, productSlugHistory } from "@arilla/db";
 import { and, eq } from "drizzle-orm";
 import type { ProductDetail, SlugResolution } from "./result-types.ts";
 
@@ -13,6 +13,7 @@ function toProductDetail(row: {
   slug: string;
   title: string;
   brandName: string | null;
+  categoryName: string | null;
   modelKey: string | null;
   color: string | null;
   primaryImageUrl: string | null;
@@ -26,6 +27,7 @@ function toProductDetail(row: {
     slug: row.slug,
     title: row.title,
     brandName: row.brandName,
+    categoryName: row.categoryName,
     modelKey: row.modelKey,
     color: row.color,
     primaryImageUrl: row.primaryImageUrl,
@@ -43,6 +45,7 @@ async function findBySlug(db: Database, slug: string) {
       slug: product.slug,
       title: product.title,
       brandName: brand.name,
+      categoryName: category.name,
       modelKey: product.modelKey,
       color: product.color,
       primaryImageUrl: product.primaryImageUrl,
@@ -52,6 +55,7 @@ async function findBySlug(db: Database, slug: string) {
     })
     .from(product)
     .leftJoin(brand, eq(brand.id, product.brandId))
+    .leftJoin(category, eq(category.id, product.categoryId))
     // Taslak/bekleyen kaynak ilanı (karar 0121) herkese kapalıdır: sayfa yok.
     .where(and(eq(product.slug, slug), eq(product.publicationState, "published")))
     .limit(1);

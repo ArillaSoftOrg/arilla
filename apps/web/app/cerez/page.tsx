@@ -1,3 +1,4 @@
+import { gtmLoadsBeforeConsent, parseClarityId, parseGtmId } from "@arilla/core/gtm";
 import { LegalPageLayout } from "@arilla/ui";
 import type { Metadata } from "next";
 import { CookiePreferencesPageForm } from "../cookie-consent-client.tsx";
@@ -88,7 +89,11 @@ const ANALYTICS_COOKIES: readonly CookieRow[] = [
 
 export default async function CerezPage() {
   const consent = await readConsent();
-  const ga4 = isGa4MeasurementActive();
+  const gtm = parseGtmId(process.env.GTM_CONTAINER_ID) !== null;
+  const clarity = parseClarityId(process.env.CLARITY_PROJECT_ID) !== null;
+  const gtmEarly = gtmLoadsBeforeConsent(process.env.GTM_LOAD_BEFORE_CONSENT);
+  // Google Tag Manager kapsayıcısında GA4 etiketi çalışır (karar 0219): GA4 metni geçerlidir.
+  const ga4 = isGa4MeasurementActive() || gtm;
   const umami = isUmamiTrackerActive();
 
   return (
@@ -124,6 +129,42 @@ export default async function CerezPage() {
           </p>
         )}
       </section>
+
+      {gtm || clarity ? (
+        <section id="olcum-araclari">
+          <h2>Ölçüm araçları (üçüncü taraf)</h2>
+          {gtm ? (
+            <p>
+              <strong>Google Tag Manager / Google Analytics 4</strong> — analitik çerezler; yalnızca
+              analitik izninizle çerez yazar ve ölçüm yapar. Reklam sinyalleri (reklam depolaması,
+              reklam kullanıcı verisi, reklam kişiselleştirme) kalıcı olarak kapalıdır.{" "}
+              {gtmEarly
+                ? "Etiket yöneticisi sayfa açılırken, izniniz olmadan da yüklenir; bu durumda Google'a çerezsiz, kimlik içermeyen teknik bir istek gidebilir ve ölçüm izin verilene kadar kısıtlıdır."
+                : "Etiket yöneticisi izin vermezseniz hiç yüklenmez."}{" "}
+              Sayfa görüntülemeleri alan adı ve yol ile gönderilir; adres satırındaki parametreler
+              gönderilmez.
+            </p>
+          ) : null}
+          {clarity ? (
+            <p>
+              <strong>Microsoft Clarity</strong> — yalnızca analitik izninizle yüklenir; sayfa
+              kullanımının oturum kaydı ve ısı haritası biçiminde incelenmesi için kullanılır. Metin
+              alanları (arama kutusu, sohbet mesajı, giriş ve kayıt alanları) maskelenir; izni geri
+              çekerseniz Clarity çerezleri kapatılır.
+            </p>
+          ) : null}
+          <p>
+            <strong>Cloudflare Web Analytics</strong> — çerez kullanmayan, toplu trafik ölçümüdür;
+            tarayıcınıza çerez yazmaz.
+          </p>
+          <p>
+            <em>
+              [Hukuki gözden geçirme gerekli: üçüncü taraf aktarımı, yurt dışına veri aktarımı ve
+              saklama süreleri için aydınlatma metniyle birlikte değerlendirilmelidir.]
+            </em>
+          </p>
+        </section>
+      ) : null}
 
       <section>
         <h2>2. Çerez kategorileri</h2>
@@ -199,6 +240,16 @@ export default async function CerezPage() {
                 </li>
               ))}
             </ul>
+            {clarity ? (
+              <p>
+                Microsoft Clarity de yalnızca izninizle çerez yazar (ör. <strong>_clck</strong>,{" "}
+                <strong>_clsk</strong>; yaklaşık 1 yıl ve 1 gün).{" "}
+                <em>
+                  [Hukuki gözden geçirme gerekli: çerez adları ve süreleri Microsoft belgesiyle
+                  doğrulanmalıdır.]
+                </em>
+              </p>
+            ) : null}
           </>
         ) : null}
       </section>

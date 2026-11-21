@@ -27,6 +27,15 @@ import {
   GA4_SCRIPT_ORIGIN,
   parseMeasurementId,
 } from "@arilla/core/ga4-measurement";
+import {
+  CLARITY_CONNECT_ORIGINS,
+  CLARITY_SCRIPT_ORIGIN,
+  GTM_CONNECT_ORIGINS,
+  GTM_FRAME_ORIGIN,
+  GTM_SCRIPT_ORIGIN,
+  parseClarityId,
+  parseGtmId,
+} from "@arilla/core/gtm";
 import { umamiTrackerFromEnv } from "@arilla/core/umami-tracker";
 import { COLLECTION_PAGE_PATH } from "./app/yonetim/katalog/toplama/document-load.ts";
 
@@ -42,6 +51,10 @@ export interface SecurityHeaderOptions {
   production: boolean;
   /** Geçerli GA4 ölçüm kimliği tanımlı mı (karar 0087). */
   ga4?: boolean;
+  /** Geçerli GTM kapsayıcı kimliği tanımlı mı (karar 0219). */
+  gtm?: boolean;
+  /** Geçerli Clarity proje kimliği tanımlı mı (karar 0219). Betik yine rıza kapısındadır. */
+  clarity?: boolean;
   /** Umami kökeni (karar 0116); yalnızca izleyici etkinken. Betik yine rıza kapısındadır. */
   umamiOrigin?: string | null;
   /** Ek `connect-src` kokenleri; yalnızca katalog toplama sayfası (karar 0117). */
@@ -59,7 +72,9 @@ export function contentSecurityPolicy(options: SecurityHeaderOptions): string {
         "'self'",
         "'unsafe-inline'",
         ...(options.development ? ["'unsafe-eval'"] : []),
-        ...(options.ga4 ? [GA4_SCRIPT_ORIGIN] : []),
+        ...(options.ga4 || options.gtm ? [GA4_SCRIPT_ORIGIN] : []),
+        ...(options.gtm ? [GTM_SCRIPT_ORIGIN] : []),
+        ...(options.clarity ? [CLARITY_SCRIPT_ORIGIN] : []),
         ...(options.umamiOrigin ? [options.umamiOrigin] : []),
       ],
     ],
@@ -72,11 +87,13 @@ export function contentSecurityPolicy(options: SecurityHeaderOptions): string {
         "'self'",
         ...(options.development ? ["ws:", "wss:"] : []),
         ...(options.ga4 ? GA4_CONNECT_ORIGINS : []),
+        ...(options.gtm ? GTM_CONNECT_ORIGINS : []),
+        ...(options.clarity ? CLARITY_CONNECT_ORIGINS : []),
         ...(options.umamiOrigin ? [options.umamiOrigin] : []),
         ...(options.extraConnectOrigins ?? []),
       ],
     ],
-    ["frame-src", ["'self'"]],
+    ["frame-src", ["'self'", ...(options.gtm ? [GTM_FRAME_ORIGIN] : [])]],
     ["object-src", ["'none'"]],
     ["base-uri", ["'self'"]],
     ["form-action", ["'self'", ...OAUTH_FORM_TARGETS]],
@@ -134,12 +151,20 @@ export const TOKEN_URL_PATHS = [
 
 /** Yönetim: dizin dışı + GA4 kökenleri OLMAYAN CSP (yalnızca GA4 açıkken ezmek gerekir). */
 function adminHeaders(options: SecurityHeaderOptions): SecurityHeader[] {
-  if (!options.ga4 && !options.umamiOrigin) return ADMIN_EXTRA_HEADERS;
+  if (!options.ga4 && !options.gtm && !options.clarity && !options.umamiOrigin) {
+    return ADMIN_EXTRA_HEADERS;
+  }
   return [
     ...ADMIN_EXTRA_HEADERS,
     {
       key: "Content-Security-Policy",
-      value: contentSecurityPolicy({ ...options, ga4: false, umamiOrigin: null }),
+      value: contentSecurityPolicy({
+        ...options,
+        ga4: false,
+        gtm: false,
+        clarity: false,
+        umamiOrigin: null,
+      }),
     },
   ];
 }
@@ -160,6 +185,8 @@ function collectionHeaders(options: SecurityHeaderOptions): SecurityHeader[] {
       value: contentSecurityPolicy({
         ...options,
         ga4: false,
+        gtm: false,
+        clarity: false,
         extraConnectOrigins: COLLECTION_CONNECT_ORIGINS,
       }),
     },
@@ -202,6 +229,8 @@ export function securityHeaderOptionsFromEnv(
     // karar 0109). Yerelde http uzerinden `next start` HSTS almaz.
     production: isHttpsProductionDeploy(env),
     ga4: parseMeasurementId(env.GA4_MEASUREMENT_ID) !== null,
+    gtm: parseGtmId(env.GTM_CONTAINER_ID) !== null,
+    clarity: parseClarityId(env.CLARITY_PROJECT_ID) !== null,
     umamiOrigin: umamiTrackerFromEnv(env)?.baseUrl ?? null,
   };
 }

@@ -31,7 +31,8 @@
     "./errors": "./src/errors/index.ts",
     "./price-history-view": "./src/product/price-history-view.ts",
     "./umami-tracker": "./src/analytics-umami/config.ts",
-    "./umami-events": "./src/analytics-umami/events.ts"
+    "./umami-events": "./src/analytics-umami/events.ts",
+    "./gtm": "./src/analytics-gtm/gtm.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

@@ -18,6 +18,7 @@ import { HOME_COPY } from "./home-copy.ts";
 import { HomeHeroHeading } from "./home-hero-heading.tsx";
 import { IMAGE_CHAT_COPY } from "./home-image-chat.ts";
 import styles from "./home-search-composer.module.css";
+import { trackEvent } from "./lib/track-event.ts";
 import { LoginGateModal } from "./login-gate-modal-client.tsx";
 
 const TRANSPARENT_PIXEL = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
@@ -196,6 +197,7 @@ export function HomeSearchComposer({
                   onChange={(nextCategory) => {
                     setImageFailed(false);
                     setCategoryId(nextCategory);
+                    trackEvent("select_category", { category_name: nextCategory });
                   }}
                 />
               </div>

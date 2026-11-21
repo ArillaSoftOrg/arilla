@@ -334,6 +334,7 @@ export function SearchComposer({
               </div>
             ) : null}
             <textarea
+              data-clarity-mask="True"
               ref={inputRef}
               id={inputId}
               rows={1}

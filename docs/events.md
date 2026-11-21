@@ -76,6 +76,33 @@ telefon hiçbir alanda gönderilmez (`ga4-measurement.ts`, testli). GA4
 mülkündeki "gelişmiş ölçüm" kapalı tutulur (`docs/ops.md`). Yeni bir GA4
 olayı eklemek için önce bu tablo ve izin listesi güncellenir.
 
+## GTM / dataLayer (tarayıcı, karar 0219)
+
+Tek giriş `apps/web/app/lib/track-event.ts` `trackEvent(ad, parametreler)`; süzgeç ve
+sözlük `@arilla/core/gtm`. Her push 9 anahtarın HEPSİNİ taşır (kullanılmayan `null`):
+`search_term, item_id, item_name, item_category, store_name, method, category_name,
+interaction_type, compared_count`. GTM veri katmanı değer taşıdığı için sıfırlama zorunludur.
+
+| Olay | Parametreler | Tetikleyen |
+| --- | --- | --- |
+| `search` | `search_term` | ana sayfa metin gönderimi (`home-composer-submission.ts`) |
+| `ai_chat_start` | `interaction_type` (`home_composer`, `home_image`) | ana sayfadan sohbet başlatma |
+| `ai_chat_message` | `interaction_type` (`user_message`, `suggestion_click`) | sohbette mesaj / öneri seçimi (`chat-client.tsx`) |
+| `view_item` | `item_id, item_name, store_name` | ürün sayfası (`product-analytics-client.tsx`) |
+| `compare_products` | `compared_count, item_id` | sohbette karşılaştırma panelinin açılması |
+| `store_redirect_click` | `item_id, item_name, store_name` | ürün sayfasında `/git/…` tıklaması |
+| `save_item`, `remove_saved_item` | `item_id, item_name, store_name` | ürün sayfası, sohbet kartı, Kaydettiklerim |
+| `select_category` | `category_name` | ana sayfa kategori seçici |
+| `discover_interaction` | `interaction_type` (`card_click`) | /kesfet kart tıklaması |
+| `early_access_signup` | `method` (`web_form`) | erken erişim "az önce katıldı" |
+
+Henüz yok: `sign_up`, `login` (giriş akışı netleşince ayrıca istenecek). `item_category` ürün sayfasında `category.name` ile gelir (kategorisiz üründe null). `store_redirect_click` yalnızca ürün sayfasında vardır; sohbet ürün kartları `/urun/…`'a gider (mağaza çıkışı ürün sayfasında), link-sonuç kartındaki `/git/` bağlantısında ürün kimliği yoktur (yalnızca teklif kimliği ve kaynak site adı) — bu yüzden orada olay gönderilmez.
+
+Kişisel veri kuralları: sohbet metni, e-posta, telefon, ad, kullanıcı kimliği, IP gönderilmez;
+`search_term` küçük harf, kırpılmış, ≤100 karakter, e-posta/telefon benzeri ise hiç gitmez;
+GA4'e `user_id` gönderilmez. Sayfa görüntüleme GTM'deki Google etiketindedir (otomatik
+`page_view`); 0087'deki yol arındırması BUNA uygulanmaz (bkz. karar 0219 "Bilinen risk").
+
 ## Umami (tarayıcı, karar 0116)
 
 Umami'ye (kendi sunucumuz) gönderilen olaylar yalnızca şunlardır. Yalnızca

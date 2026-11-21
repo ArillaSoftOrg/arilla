@@ -68,6 +68,8 @@ describe("güvenlik başlıkları", () => {
     expect(securityHeaderOptionsFromEnv({ NODE_ENV: "production", VERCEL: "1" })).toEqual({
       ...PROD,
       ga4: false,
+      gtm: false,
+      clarity: false,
       umamiOrigin: null,
     });
     expect(securityHeaderOptionsFromEnv({ NODE_ENV: "production" }).production).toBe(false);
@@ -78,7 +80,7 @@ describe("güvenlik başlıkları", () => {
   it("HSTS kendi sunucumuzda DEPLOY_ENV=production ile gelir, stagingde gelmez", () => {
     expect(
       securityHeaderOptionsFromEnv({ NODE_ENV: "production", DEPLOY_ENV: "production" }),
-    ).toEqual({ ...PROD, ga4: false, umamiOrigin: null });
+    ).toEqual({ ...PROD, ga4: false, gtm: false, clarity: false, umamiOrigin: null });
     expect(
       securityHeaderOptionsFromEnv({ NODE_ENV: "production", DEPLOY_ENV: "staging" }).production,
     ).toBe(false);
@@ -232,6 +234,22 @@ describe("katalog toplama CSP'si (karar 0117)", () => {
     expect(csp("/yonetim/katalog/toplama")).not.toContain("googletagmanager");
     expect(csp("/:path*")).not.toContain("hepsiburada");
     expect(csp("/yonetim/:path*")).not.toContain("hepsiburada");
+  });
+
+  // Karar 0219: GTM/Clarity kökenleri yalnızca kimlik tanımlıyken; yönetimde yok.
+  it("GTM ve Clarity kökenleri yalnızca açıkken CSP'ye girer, yönetimde girmez", () => {
+    const off = contentSecurityPolicy(PROD);
+    expect(off).not.toContain("googletagmanager.com");
+    expect(off).not.toContain("clarity.ms");
+    const on = contentSecurityPolicy({ ...PROD, gtm: true, clarity: true });
+    expect(on).toContain("script-src 'self' 'unsafe-inline' https://www.googletagmanager.com");
+    expect(on).toContain("https://www.clarity.ms");
+    expect(on).toContain("frame-src 'self' https://www.googletagmanager.com");
+    const routes = securityHeaderRoutes({ ...PROD, gtm: true, clarity: true });
+    const admin = routes.find((r) => r.source === "/yonetim");
+    expect(header(admin?.headers ?? [], "Content-Security-Policy")).not.toContain(
+      "googletagmanager.com",
+    );
   });
 });
 

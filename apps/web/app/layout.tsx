@@ -2,14 +2,24 @@ import type { Metadata, Viewport } from "next";
 import { type ReactNode, Suspense } from "react";
 import { preload } from "react-dom";
 import "./globals.css";
-import { readAppUrl } from "@arilla/core";
+import { isProductOpen, readAppUrl, serializeJsonLd } from "@arilla/core";
+import { isConsentAllowed } from "@arilla/core/cookie-consent";
 import { parseMeasurementId } from "@arilla/core/ga4-measurement";
+import {
+  consentBootstrapScript,
+  gtmLoadsBeforeConsent,
+  gtmSnippet,
+  parseClarityId,
+  parseGtmId,
+} from "@arilla/core/gtm";
 import { ConsentGate, ConsentProvider } from "./cookie-consent-client.tsx";
 import { Ga4Client } from "./ga4-client.tsx";
+import { ClarityClient, GtmConsentSync, GtmLateLoader } from "./gtm-client.tsx";
 import { readConsent } from "./lib/consent.ts";
+import { siteJsonLd } from "./lib/site-json-ld.ts";
 import { readThemePreference } from "./lib/theme-cookie.ts";
 import { umamiTracker } from "./lib/umami.ts";
-import { SITE_BRAND } from "./site-config.ts";
+import { configuredSocialLinks, SITE_BRAND } from "./site-config.ts";
 import { SystemStatusClient } from "./system-status-client.tsx";
 import { UmamiClient } from "./umami-client.tsx";
 
@@ -66,21 +76,75 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const consent = await readConsent();
   // Karar 0087: kimlik çalışma anında sunucudan; geçersiz/yoksa GA4 hiç yok.
   const ga4Id = parseMeasurementId(process.env.GA4_MEASUREMENT_ID);
+  // Karar 0219: GTM kapsayıcısı ve Clarity projesi çalışma anında sunucudan; geçersiz/yoksa hiç yok.
+  const gtmId = parseGtmId(process.env.GTM_CONTAINER_ID);
+  const clarityId = parseClarityId(process.env.CLARITY_PROJECT_ID);
+  const gtmEarly = gtmLoadsBeforeConsent(process.env.GTM_LOAD_BEFORE_CONSENT);
+  const analyticsGranted = isConsentAllowed(consent, "analytics");
+  // GTM varsa GA4 etiketi GTM içindedir: doğrudan gtag yüklenmez (çift sayım yok).
+  const directGa4Id = gtmId ? null : ga4Id;
   // Karar 0116: kök adres ve web sitesi kimliği çalışma anında sunucudan; yoksa Umami hiç yok.
   const umami = umamiTracker();
   // Karar 0092: elle secilen tema ilk HTML'de; yoksa cihaz tercihi (titreme yok).
   const theme = await readThemePreference();
+  const orgJsonLd = siteJsonLd({
+    siteUrl: appUrl,
+    brand: SITE_BRAND,
+    description: SITE_DESCRIPTION,
+    sameAs: configuredSocialLinks().map((link) => link.href),
+    searchOpen: isProductOpen(),
+  });
 
   return (
     <html lang="tr" data-theme={theme ?? undefined}>
+      {gtmId ? (
+        <head>
+          {/* Karar 0219: Consent Mode v2 varsayılanı GTM'den ÖNCE; /yonetim'de GTM yok. */}
+          <script
+            // biome-ignore lint/security/noDangerouslySetInnerHtml: yalnızca sabit değerler ve doğrulanmış kimlik.
+            dangerouslySetInnerHTML={{
+              __html: `${consentBootstrapScript(analyticsGranted)}${gtmEarly ? `if(location.pathname.indexOf("/yonetim")!==0){${gtmSnippet(gtmId)}}` : ""}`,
+            }}
+          />
+        </head>
+      ) : null}
       <body>
+        {gtmId && gtmEarly ? (
+          <noscript>
+            <iframe
+              title="Google Tag Manager"
+              src={`https://www.googletagmanager.com/ns.html?id=${gtmId}`}
+              height="0"
+              width="0"
+              style={{ display: "none", visibility: "hidden" }}
+            />
+          </noscript>
+        ) : null}
+        {orgJsonLd ? (
+          <script
+            type="application/ld+json"
+            // biome-ignore lint/security/noDangerouslySetInnerHtml: sabit site verisi; serializeJsonLd </script> kaçışını engeller.
+            dangerouslySetInnerHTML={{ __html: serializeJsonLd(orgJsonLd) }}
+          />
+        ) : null}
         <ConsentProvider consent={consent}>
           <SystemStatusClient />
           {children}
-          {ga4Id ? (
+          {gtmId ? <GtmConsentSync analyticsGranted={analyticsGranted} /> : null}
+          {gtmId && !gtmEarly ? (
+            <ConsentGate category="analytics">
+              <GtmLateLoader gtmId={gtmId} />
+            </ConsentGate>
+          ) : null}
+          {clarityId ? (
+            <ConsentGate category="analytics">
+              <ClarityClient projectId={clarityId} />
+            </ConsentGate>
+          ) : null}
+          {directGa4Id ? (
             <ConsentGate category="analytics">
               <Suspense fallback={null}>
-                <Ga4Client measurementId={ga4Id} />
+                <Ga4Client measurementId={directGa4Id} />
               </Suspense>
             </ConsentGate>
           ) : null}

@@ -25,6 +25,7 @@ import { configuredSocialLinks, SITE_BRAND } from "../site-config.ts";
 import { UmamiEarlyAccessJoined } from "../umami-client.tsx";
 import { joinEarlyAccessAction } from "./actions.ts";
 import styles from "./page.module.css";
+import { EarlyAccessSignupTracker } from "./signup-tracker-client.tsx";
 import { earlyAccessState } from "./state.ts";
 
 export const metadata: Metadata = {
@@ -90,6 +91,7 @@ export default async function ErkenErisimPage() {
   return (
     <SubpageShell currentPath="/erken-erisim">
       {/* Karar 0116: yalnızca Umami etkinse, analitik rızasıyla ve "az önce katıldı" durumunda tek olay. */}
+      {state === "just_joined" ? <EarlyAccessSignupTracker /> : null}
       {isUmamiTrackerActive() && state === "just_joined" ? (
         <ConsentGate category="analytics">
           <UmamiEarlyAccessJoined />

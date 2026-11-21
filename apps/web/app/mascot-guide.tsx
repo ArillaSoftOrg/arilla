@@ -33,7 +33,7 @@ export function MascotGuide({ pose, priority = false }: { pose: MascotPose; prio
     <div className={styles.mascotGuide} data-mascot-guide="" data-pose={pose} aria-hidden="true">
       <picture>
         {image.mobileSrc ? <source media="(max-width: 639px)" srcSet={image.mobileSrc} /> : null}
-        <Image {...imageProps} src={image.src} className={styles.guideImage} unoptimized />
+        <Image {...imageProps} src={image.src} className={styles.guideImage} />
       </picture>
     </div>
   );
