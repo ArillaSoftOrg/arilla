@@ -1,8 +1,4 @@
-import {
-  canAccessProduct,
-  EARLY_ACCESS_PATH,
-  EARLY_ACCESS_SIGNUP_PATH,
-} from "@arilla/core";
+import { canAccessProduct, EARLY_ACCESS_PATH, EARLY_ACCESS_SIGNUP_PATH } from "@arilla/core";
 import type { FooterGroup, HomeHeaderAppearance, HomeHeaderNavItem } from "@arilla/ui";
 import { Container, HomeHeader, LibraryMenu, SiteFooter, SkipLink } from "@arilla/ui";
 import type { ReactNode } from "react";
@@ -170,9 +166,7 @@ export async function PublicSiteShell({
         themeControl={<ThemeToggleControl initialTheme={initialTheme} />}
         themeControlLabel={HOME_COPY.themeToggleLabel}
         utilityLink={
-          user?.role === "admin"
-            ? { label: "Yönetim paneli", href: "/yonetim" }
-            : undefined
+          user?.role === "admin" ? { label: "Yönetim paneli", href: "/yonetim" } : undefined
         }
         utilityInMenuOnly={footerVariant === "prelaunch"}
         personalNavItems={personalNavItems}
