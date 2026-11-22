@@ -149,7 +149,9 @@
 .textarea {
   width: 100%;
   min-width: 0;
-  min-height: 9rem;
+  min-height: 5.5rem;
+  max-height: 24rem;
+  field-sizing: content;
   padding: var(--space-3) var(--space-4);
   border: var(--border-width) solid var(--line-strong);
   border-radius: var(--radius-md);
@@ -158,7 +160,7 @@
   font-family: inherit;
   font-size: var(--text-body);
   line-height: var(--line-height-body);
-  resize: vertical;
+  resize: none;
 }
 
 .textarea:hover:not(:focus) {
@@ -342,4 +344,31 @@
       background-color var(--duration-fast) var(--ease-standard),
       border-color var(--duration-fast) var(--ease-standard);
   }
+}
+
+.select {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--size-touch-target);
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--text-body);
+  line-height: var(--line-height-body);
+}
+
+.select:hover:not(:focus) {
+  border-color: var(--ink-secondary);
+}
+
+.select:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.select[aria-invalid="true"] {
+  border-color: var(--alert);
 }

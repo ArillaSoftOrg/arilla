@@ -18,11 +18,10 @@ export const FEEDBACK_COPY = {
   description:
     "Eksik gördüğünüz, geliştirilmesini istediğiniz veya sorun yaşadığınız noktaları bize iletebilirsiniz.", // feedback.description
   categoryLegend: "Geri bildirim türü", // feedback.category_label
+  categoryPlaceholder: "Tür seçin", // feedback.category_placeholder
   titleLabel: "Başlık", // feedback.title_label
   titlePlaceholder: "Arama sonuçlarında filtreleme olmalı", // feedback.title_placeholder
   messageLabel: "Açıklama", // feedback.message_label
-  messageHint: "Ne bekliyordunuz, ne oldu veya neyin geliştirilmesini istersiniz?", // feedback.message_hint
-  priorityLegend: "Önem seviyesi", // feedback.priority_label
   optional: "(isteğe bağlı)", // feedback.optional
   emailLabel: "E-posta", // feedback.email_label
   emailHint: "Yanıt almak isterseniz e-posta adresinizi bırakabilirsiniz.", // feedback.email_hint

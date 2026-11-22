@@ -111,7 +111,11 @@ export function ComingSoonLanding({
                     <span>{item.title}</span>
                     <span className={styles.buildStatus} data-done={item.status === "done"}>
                       <span aria-hidden="true" />
-                      {item.status === "done" ? copy.buildStatusDone : copy.buildStatusInProgress}
+                      {item.status === "done"
+                        ? copy.buildStatusDone
+                        : item.status === "planned"
+                          ? copy.buildStatusPlanned
+                          : copy.buildStatusInProgress}
                     </span>
                   </li>
                 ))}

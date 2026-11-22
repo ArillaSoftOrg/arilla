@@ -2,14 +2,13 @@
 
 import type { FeedbackField, FeedbackFieldError } from "@arilla/core";
 import { loginPathWithNext } from "@arilla/core/auth-redirect";
-import type { FeedbackCategory, FeedbackPriority } from "@arilla/db";
+import type { FeedbackCategory } from "@arilla/db";
 import { Button, Input } from "@arilla/ui";
-import { useActionState, useEffect, useId, useRef } from "react";
+import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { type FeedbackActionResult, submitFeedbackAction } from "./actions.ts";
 import {
   FEEDBACK_COPY as COPY,
   FEEDBACK_CATEGORY_LABELS,
-  FEEDBACK_PRIORITY_LABELS,
 } from "./feedback-copy.ts";
 import styles from "./page.module.css";
 
@@ -25,7 +24,6 @@ interface FormState {
 // Secenekler etiket kayitlarindan: `Record` tipi her kategorinin etiketi
 // oldugunu zorlar; istemci paketine `@arilla/db` degeri cekilmez.
 const CATEGORIES = Object.keys(FEEDBACK_CATEGORY_LABELS) as FeedbackCategory[];
-const PRIORITIES = Object.keys(FEEDBACK_PRIORITY_LABELS) as FeedbackPriority[];
 const LOGIN_AGAIN_HREF = loginPathWithNext("/geri-bildirim");
 
 const INITIAL: FormState = { result: { status: "idle" }, values: {} };
@@ -39,7 +37,7 @@ const MESSAGE_MAX = 5000;
 
 function readValues(formData: FormData): Values {
   const values: Values = {};
-  for (const key of ["category", "title", "message", "priority", "email"] as const) {
+  for (const key of ["category", "title", "message", "email"] as const) {
     const value = formData.get(key);
     if (typeof value === "string") values[key] = value;
   }
@@ -109,6 +107,7 @@ export function FeedbackFormClient({ signedIn }: { signedIn: boolean }) {
   const alertRef = useRef<HTMLParagraphElement>(null);
   const successRef = useRef<HTMLHeadingElement>(null);
   const baseId = useId();
+  const [complete, setComplete] = useState(false);
   const { result, values } = state;
   const fieldErrors = result.status === "invalid" ? result.fieldErrors : {};
   const errorFor = (field: FeedbackField) => fieldMessage(field, fieldErrors[field]);
@@ -125,6 +124,26 @@ export function FeedbackFormClient({ signedIn }: { signedIn: boolean }) {
     const firstInvalid = formRef.current?.querySelector<HTMLElement>("[aria-invalid='true']");
     (firstInvalid ?? alertRef.current)?.focus();
   }, [result]);
+
+  // Zorunlu alanlar (tur, baslik, aciklama) dolmadan gonderim kapali.
+  // Form eylemi sonrasi sifirlandigi icin sonuc degisince de yeniden hesaplanir.
+  const recomputeComplete = () => {
+    const form = formRef.current;
+    if (!form) return;
+    const data = new FormData(form);
+    const text = (key: string) => String(data.get(key) ?? "").trim();
+    setComplete(
+      text("category") !== "" &&
+        text("title").length >= TITLE_MIN &&
+        text("message").length >= MESSAGE_MIN,
+    );
+  };
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sonuc degisince yeniden hesapla
+  useEffect(() => {
+    // Form sifirlamasi bir sonraki karede yansir.
+    const id = requestAnimationFrame(recomputeComplete);
+    return () => cancelAnimationFrame(id);
+  }, [state]);
 
   if (result.status === "ok") {
     return (
@@ -148,52 +167,53 @@ export function FeedbackFormClient({ signedIn }: { signedIn: boolean }) {
 
   const categoryError = errorFor("category");
   const messageError = errorFor("message");
-  const priorityError = errorFor("priority");
   const ids = {
+    category: `${baseId}-category`,
     categoryError: `${baseId}-category-error`,
     message: `${baseId}-message`,
-    messageHint: `${baseId}-message-hint`,
     messageError: `${baseId}-message-error`,
-    priorityError: `${baseId}-priority-error`,
   };
 
   return (
     <form
       ref={formRef}
       action={action}
+      onInput={recomputeComplete}
+      onChange={recomputeComplete}
       className={styles.form}
       aria-busy={pending || undefined}
       aria-describedby={alertText ? `${baseId}-alert` : undefined}
     >
       {signedIn ? <p className={styles.authNotice}>{COPY.authNotice}</p> : null}
 
-      <fieldset
-        className={styles.fieldset}
-        aria-describedby={categoryError ? ids.categoryError : undefined}
-      >
-        <legend className={styles.legend}>{COPY.categoryLegend}</legend>
-        <div className={styles.choices}>
+      <div className={styles.field}>
+        <label className={styles.label} htmlFor={ids.category}>
+          {COPY.categoryLegend}
+        </label>
+        <select
+          id={ids.category}
+          name="category"
+          required
+          defaultValue={values.category ?? ""}
+          className={styles.select}
+          aria-invalid={categoryError ? true : undefined}
+          aria-describedby={categoryError ? ids.categoryError : undefined}
+        >
+          <option value="" disabled>
+            {COPY.categoryPlaceholder}
+          </option>
           {CATEGORIES.map((category) => (
-            <label key={category} className={styles.choice}>
-              <input
-                type="radio"
-                name="category"
-                value={category}
-                required
-                defaultChecked={values.category === category}
-                aria-invalid={categoryError ? true : undefined}
-                className={styles.choiceInput}
-              />
-              <span className={styles.choiceLabel}>{FEEDBACK_CATEGORY_LABELS[category]}</span>
-            </label>
+            <option key={category} value={category}>
+              {FEEDBACK_CATEGORY_LABELS[category]}
+            </option>
           ))}
-        </div>
+        </select>
         {categoryError ? (
           <p id={ids.categoryError} className={styles.errorText}>
             {categoryError}
           </p>
         ) : null}
-      </fieldset>
+      </div>
 
       <Input
         label={COPY.titleLabel}
@@ -218,52 +238,18 @@ export function FeedbackFormClient({ signedIn }: { signedIn: boolean }) {
           required
           minLength={MESSAGE_MIN}
           maxLength={MESSAGE_MAX}
-          rows={6}
+          rows={3}
           defaultValue={values.message ?? ""}
           className={styles.textarea}
           aria-invalid={messageError ? true : undefined}
-          aria-describedby={[ids.messageHint, messageError ? ids.messageError : null]
-            .filter(Boolean)
-            .join(" ")}
+          aria-describedby={messageError ? ids.messageError : undefined}
         />
-        <span id={ids.messageHint} className={styles.hint}>
-          {COPY.messageHint}
-        </span>
         {messageError ? (
           <span id={ids.messageError} className={styles.errorText}>
             {messageError}
           </span>
         ) : null}
       </div>
-
-      <fieldset
-        className={styles.fieldset}
-        aria-describedby={priorityError ? ids.priorityError : undefined}
-      >
-        <legend className={styles.legend}>
-          {COPY.priorityLegend} <span className={styles.optional}>{COPY.optional}</span>
-        </legend>
-        <div className={styles.choices}>
-          {PRIORITIES.map((priority) => (
-            <label key={priority} className={styles.choice}>
-              <input
-                type="radio"
-                name="priority"
-                value={priority}
-                defaultChecked={values.priority === priority}
-                aria-invalid={priorityError ? true : undefined}
-                className={styles.choiceInput}
-              />
-              <span className={styles.choiceLabel}>{FEEDBACK_PRIORITY_LABELS[priority]}</span>
-            </label>
-          ))}
-        </div>
-        {priorityError ? (
-          <p id={ids.priorityError} className={styles.errorText}>
-            {priorityError}
-          </p>
-        ) : null}
-      </fieldset>
 
       {signedIn ? null : (
         <Input
@@ -297,7 +283,7 @@ export function FeedbackFormClient({ signedIn }: { signedIn: boolean }) {
         </p>
       ) : null}
 
-      <Button type="submit" variant="accent" size="lg" shape="pill" disabled={pending}>
+      <Button type="submit" variant="accent" size="lg" shape="pill" disabled={pending || !complete}>
         {pending ? COPY.submitting : COPY.submit}
       </Button>
 

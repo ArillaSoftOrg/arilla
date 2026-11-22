@@ -88,6 +88,7 @@ export const COMING_SOON_COPY = {
   buildBody: "Erken erişim öncesindeki çalışma başlıklarımız.",
   buildStatusDone: "Hazır",
   buildStatusInProgress: "Geliştiriliyor",
+  buildStatusPlanned: "Planlanıyor",
   buildUpdated: (month: string) => `Son güncelleme: ${month}`,
   followTitle: "Gelişmeleri takip et",
   socialEyebrow: "ManiCepte günlüğü",
@@ -122,21 +123,14 @@ export const COMING_SOON_COPY = {
   metaDescription: `${SITE_BRAND} yakında: aradığın ürünü bul, alternatiflerini keşfet ve farklı mağazalardaki fiyatları karşılaştır. Erken erişim listesine katıl.`,
 } as const;
 
-export type BuildStatus = "done" | "in_progress";
+export type BuildStatus = "done" | "in_progress" | "planned";
 
 /** Real development status, maintained manually; no invented launch promises. */
 export const BUILD_ITEMS: readonly { id: string; title: string; status: BuildStatus }[] = [
-  { id: "erken-erisim", title: "Erken erişim sistemi", status: "done" },
-  {
-    id: "arama",
-    title: "Ürün bulma ve karşılaştırma",
-    status: "in_progress",
-  },
-  {
-    id: "kaynaklar",
-    title: "Mağaza ve ürün kaynakları",
-    status: "in_progress",
-  },
+  { id: "link-arama", title: "Ürün linkinden bulma", status: "done" },
+  { id: "dogal-dil", title: "Doğal dille arama", status: "done" },
+  { id: "gorsel-arama", title: "Görselle arama", status: "in_progress" },
+  { id: "chrome-eklentisi", title: "Chrome eklentisi", status: "planned" },
 ];
 
 export const BUILD_UPDATED: string | null = null;
