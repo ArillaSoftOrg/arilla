@@ -1,14 +1,8 @@
-import {
-  ADMIN_LOGIN_PATH,
-  canAccessProduct,
-  EARLY_ACCESS_PATH,
-  EARLY_ACCESS_SIGNUP_PATH,
-} from "@arilla/core";
+import { canAccessProduct, EARLY_ACCESS_PATH, EARLY_ACCESS_SIGNUP_PATH } from "@arilla/core";
 import type { FooterGroup, HomeHeaderAppearance, HomeHeaderNavItem } from "@arilla/ui";
 import { Container, HomeHeader, LibraryMenu, SiteFooter, SkipLink } from "@arilla/ui";
 import type { ReactNode } from "react";
 import { logoutAction } from "./cikis-actions.ts";
-import { COMING_SOON_COPY } from "./coming-soon-copy.ts";
 import { EARLY_ACCESS_COPY } from "./early-access-copy.ts";
 import { HOME_COPY } from "./home-copy.ts";
 import {
@@ -113,18 +107,14 @@ export async function PublicSiteShell({
   // kullaniciya (lansman oncesi normal kullanici bu sayfalara giremez).
   const personalNavItems: readonly HomeHeaderNavItem[] =
     user && productAccess ? markCurrent(personalNavLinks(), currentPath) : [];
-  // Lansman öncesi (karar 0043): "Admin Girişi" yalnızca anonim ziyaretçiye,
-  // sade bir footer bağlantısı. Aynı giriş akışı; yetki girişten sonra
-  // sunucuda rolden okunur. Girişli normal kullanıcı zaten yetkisizdir.
+  // Lansman öncesi (karar 0043): anonim ziyaretçiye "Admin Girişi" bağlantısı
+  // gösterilmez; yönetim girişi doğrudan /giris?next=/yonetim adresindendir.
   const footerSource = productAccess
     ? homeFooterGroups(links)
     : (compactFooter ? compactEarlyAccessFooterGroups : earlyAccessFooterGroups)(
         user
           ? [{ label: EARLY_ACCESS_COPY.navStatus, href: EARLY_ACCESS_PATH }]
-          : [
-              { label: EARLY_ACCESS_COPY.cta, href: EARLY_ACCESS_SIGNUP_PATH },
-              { label: COMING_SOON_COPY.adminLogin, href: ADMIN_LOGIN_PATH },
-            ],
+          : [{ label: EARLY_ACCESS_COPY.cta, href: EARLY_ACCESS_SIGNUP_PATH }],
       );
   const footerGroups: readonly FooterGroup[] = footerSource.map((group) => ({
     ...group,
@@ -176,11 +166,7 @@ export async function PublicSiteShell({
         themeControl={<ThemeToggleControl initialTheme={initialTheme} />}
         themeControlLabel={HOME_COPY.themeToggleLabel}
         utilityLink={
-          user?.role === "admin"
-            ? { label: "Yönetim paneli", href: "/yonetim" }
-            : !productAccess && !user
-              ? { label: COMING_SOON_COPY.adminLogin, href: ADMIN_LOGIN_PATH }
-              : undefined
+          user?.role === "admin" ? { label: "Yönetim paneli", href: "/yonetim" } : undefined
         }
         utilityInMenuOnly={footerVariant === "prelaunch"}
         personalNavItems={personalNavItems}

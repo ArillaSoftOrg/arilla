@@ -263,8 +263,8 @@ describe("landing içeriği", () => {
     expect(html).toContain("ManiCepte nasıl çalışır?");
     expect(html).toContain("Temsili önizleme");
     expect(html).toContain("Neler hazırlıyoruz?");
-    expect(html).toContain("Erken erişim sistemi");
-    expect(html).toContain("Hazır");
+    expect(html).toContain("Ürün linkinden bulma");
+    expect(html).toContain("Chrome eklentisi");
     expect(html).not.toContain("Erken erişim kayıtları");
     expect(html).not.toMatch(PRODUCT_HREF);
     expect(html).not.toContain("<form");
@@ -338,16 +338,14 @@ describe("kabuk: header ve footer", () => {
     };
   }
 
-  it("anonim: erken erişim ve sade Admin Girişi; ürün bağlantısı yok", async () => {
+  it("anonim: erken erişim; Admin Girişi ve ürün bağlantısı yok", async () => {
     const { loginHref, utilityLink, utilityInMenuOnly, groups } = await shellParts("prelaunch");
     expect(loginHref).toBe(EARLY_ACCESS_SIGNUP_PATH);
-    // Admin Girişi üst çubukta değil, yalnızca menü panelinde gösterilir.
-    expect(utilityLink).toEqual({ label: "Admin Girişi", href: ADMIN_LOGIN_PATH });
+    // Admin Girişi ne üst çubukta ne menüde ne de footer'da gösterilir.
+    expect(utilityLink).toBeUndefined();
     expect(utilityInMenuOnly).toBe(true);
     const links = groups.flatMap((group) => group.links);
-    expect(links).toContainEqual(
-      expect.objectContaining({ label: "Admin Girişi", href: ADMIN_LOGIN_PATH }),
-    );
+    expect(links.some((link) => link.label === "Admin Girişi")).toBe(false);
     expect(links.map((link) => link.href).join(" ")).not.toMatch(
       /\/(urun|kesfet|firsatlar|ara|kaydettiklerim|alarmlar|gecmis)\b/,
     );

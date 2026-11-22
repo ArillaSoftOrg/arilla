@@ -385,7 +385,6 @@ Fiyat geçmişi grafiği TL teklifi yoksa yurt dışı teklifin kendi para birim
 | `discover.description` | Farklı kategorilerden bugün öne çıkan ürünler. |
 | `discover.curated_title` | Bugün öne çıkanlar |
 | `discover.organic_title` | Kullanıcıların bulduğu |
-| `discover.loading` | Keşfet yükleniyor. |
 
 ## Giriş
 
@@ -534,9 +533,11 @@ sade biçimde belirir ve azaltılmış hareket tercihinde doğrudan görünür.
 | `coming_soon.build_body` | Erken erişim öncesindeki çalışma başlıklarımız. |
 | `coming_soon.build_status_done` | Hazır |
 | `coming_soon.build_status_in_progress` | Geliştiriliyor |
-| `coming_soon.build_item_early_access` | Erken erişim sistemi |
-| `coming_soon.build_item_search` | Ürün bulma ve karşılaştırma |
-| `coming_soon.build_item_data` | Mağaza ve ürün kaynakları |
+| `coming_soon.build_status_planned` | Planlanıyor |
+| `coming_soon.build_item_link` | Ürün linkinden bulma |
+| `coming_soon.build_item_natural` | Doğal dille arama |
+| `coming_soon.build_item_image` | Görselle arama |
+| `coming_soon.build_item_extension` | Chrome eklentisi |
 | `coming_soon.follow_title` | Gelişmeleri takip et |
 | `coming_soon.social_eyebrow` | ManiCepte günlüğü |
 | `coming_soon.social_title` | Gelişmeleri birlikte takip edelim. |
@@ -904,12 +905,11 @@ yayındaki marka "ManiCepte" (karar 0045 §9). Metinler
 | `feedback.title` | ManiCepte'yi birlikte geliştirelim |
 | `feedback.description` | Eksik gördüğünüz, geliştirilmesini istediğiniz veya sorun yaşadığınız noktaları bize iletebilirsiniz. |
 | `feedback.category_label` | Geri bildirim türü |
+| `feedback.category_placeholder` | Tür seçin |
 | `feedback.category.*` | Öneri · Hata bildirimi · Özellik isteği · Tasarım / kullanım deneyimi · Ürün / mağaza önerisi · Diğer |
 | `feedback.title_label` | Başlık |
 | `feedback.title_placeholder` | Arama sonuçlarında filtreleme olmalı |
 | `feedback.message_label` | Açıklama |
-| `feedback.message_hint` | Ne bekliyordunuz, ne oldu veya neyin geliştirilmesini istersiniz? |
-| `feedback.priority_label` | Önem seviyesi (isteğe bağlı) |
 | `feedback.priority.*` | Düşük · Orta · Yüksek |
 | `feedback.email_label` | E-posta (isteğe bağlı) |
 | `feedback.email_hint` | Yanıt almak isterseniz e-posta adresinizi bırakabilirsiniz. |
