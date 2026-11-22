@@ -6,10 +6,7 @@ import type { FeedbackCategory } from "@arilla/db";
 import { Button, Input } from "@arilla/ui";
 import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { type FeedbackActionResult, submitFeedbackAction } from "./actions.ts";
-import {
-  FEEDBACK_COPY as COPY,
-  FEEDBACK_CATEGORY_LABELS,
-} from "./feedback-copy.ts";
+import { FEEDBACK_COPY as COPY, FEEDBACK_CATEGORY_LABELS } from "./feedback-copy.ts";
 import styles from "./page.module.css";
 
 type Values = Partial<Record<FeedbackField, string>>;
