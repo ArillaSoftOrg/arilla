@@ -140,7 +140,7 @@ export interface TrendShareInput {
 export function trendShareMetadata(input: TrendShareInput): Metadata {
   const path = `/trendler/${input.slug}`;
   return {
-    title: `${input.title} – Arilla`,
+    title: `${input.title} – ${SITE_BRAND}`,
     description: input.description,
     alternates: { canonical: path },
     ...shareCard({

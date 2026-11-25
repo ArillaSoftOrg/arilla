@@ -8,10 +8,11 @@ import { getDatabase } from "@arilla/db";
 import { EmptyState, formatTRY, ProductCard } from "@arilla/ui";
 import type { Metadata } from "next";
 import { requireProductAccess } from "../lib/dal.ts";
+import { SITE_BRAND } from "../site-config.ts";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = {
-  title: "Mağaza ve yurt dışı teklifleri – Arilla",
+  title: `Mağaza ve yurt dışı teklifleri – ${SITE_BRAND}`,
   description: "Henüz bir ürünle eşleşmemiş mağaza teklifleri ve yurt dışı teklifleri.",
   alternates: { canonical: "/teklifler" },
   // Eşleşmemiş teklif listesi ince içeriktir; arama motoruna açılmaz.

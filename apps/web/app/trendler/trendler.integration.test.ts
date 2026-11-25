@@ -188,7 +188,7 @@ describe("/trendler/[slug]", () => {
   it("metadata: baslik, kisa aciklama, canonical; Article/BlogPosting yapisal verisi yok", async () => {
     const { generateMetadata } = await import("./[slug]/page.tsx");
     const meta = await generateMetadata(params(`${PREFIX}-ok`));
-    expect(meta.title).toBe("Sayfa Testi Trendi – Arilla");
+    expect(meta.title).toBe("Sayfa Testi Trendi – ManiCepte");
     expect(meta.description).toBe("Sayfa Testi Trendi için kısa açıklama.");
     expect(meta.alternates?.canonical).toBe(`/trendler/${PREFIX}-ok`);
     expect(JSON.stringify(meta)).not.toMatch(/Article|BlogPosting/);

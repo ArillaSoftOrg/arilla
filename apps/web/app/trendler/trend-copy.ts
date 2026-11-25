@@ -5,7 +5,7 @@
  */
 export const TREND_COPY = {
   pageTitle: "Trendler",
-  metaTitle: "Trendler – Arilla",
+  metaTitle: "Trendler – ManiCepte",
   metaDescription:
     "Öne çıkan stiller ve ürün fikirleri. Her trendde ürünleri farklı mağazalardaki fiyatlarıyla karşılaştırabilirsin.",
   pageDescription:

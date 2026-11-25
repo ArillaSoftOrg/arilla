@@ -4,10 +4,11 @@ import type { Metadata } from "next";
 import { toDiscoveryItems } from "../discovery-adapter.ts";
 import { HOME_COPY } from "../home-copy.ts";
 import { requireProductAccess } from "../lib/dal.ts";
+import { SITE_BRAND } from "../site-config.ts";
 import { KesfetView } from "./kesfet-view.tsx";
 
 export const metadata: Metadata = {
-  title: "Keşfet – Arilla",
+  title: `Keşfet – ${SITE_BRAND}`,
   description: HOME_COPY.kesfetDescription,
   alternates: { canonical: "/kesfet" },
 };

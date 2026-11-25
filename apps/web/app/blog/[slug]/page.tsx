@@ -1,3 +1,4 @@
+import { readAppUrl, serializeJsonLd } from "@arilla/core";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
@@ -36,6 +37,33 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
     description: article.lead,
     alternates: { canonical: `/blog/${slug}` },
     openGraph: { title: header.title, description: article.lead, type: "article" },
+  };
+}
+
+/**
+ * schema.org `Article` (Google makale sonucu). Url alanları mutlak olmalı: site adresi
+ * yoksa atlanır; göreli yer tutucu görsel de yalnızca site adresiyle mutlaklaşır.
+ * Yayın tarihi verisi yok, uydurulmaz (`datePublished` yazılmaz).
+ */
+function articleJsonLd(slug: string, header: Header, lead: string): Record<string, unknown> {
+  const siteUrl = readAppUrl();
+  const image = /^https?:\/\//.test(header.image)
+    ? header.image
+    : siteUrl
+      ? `${siteUrl}${header.image}`
+      : null;
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: header.title,
+    description: lead,
+    ...(image ? { image: [image] } : {}),
+    author: { "@type": "Organization", name: BLOG_AUTHOR.name },
+    publisher: { "@type": "Organization", name: SITE_BRAND, ...(siteUrl ? { url: siteUrl } : {}) },
+    inLanguage: "tr-TR",
+    ...(siteUrl
+      ? { mainEntityOfPage: `${siteUrl}/blog/${slug}`, url: `${siteUrl}/blog/${slug}` }
+      : {}),
   };
 }
 
@@ -79,6 +107,13 @@ export default async function ArticlePage({ params }: { params: Promise<Params> 
 
   return (
     <article className={styles.page}>
+      <script
+        type="application/ld+json"
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: schema.org JSON-LD; statik makale verisi, serializeJsonLd </script> kacisini engeller.
+        dangerouslySetInnerHTML={{
+          __html: serializeJsonLd(articleJsonLd(slug, header, article.lead)),
+        }}
+      />
       <div className={styles.column}>
         <a href="/blog" className={styles.back}>
           Blog

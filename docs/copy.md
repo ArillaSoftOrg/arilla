@@ -948,7 +948,7 @@ yayındaki marka "ManiCepte" (karar 0045 §9). Metinler
 | `error.home_action` | Ana sayfaya dön |
 | `error.generic_title` | Bu sayfa şu an açılamadı. |
 | `error.global_title` | Arilla şu an açılamadı. |
-| `error.document_title` | Bir hata oluştu – Arilla |
+| `error.document_title` | Bir hata oluştu – ManiCepte |
 | `action.retry` | Tekrar dene |
 | `error.rate_limited` | Çok hızlı gidiyorsun. Biraz bekleyip tekrar dene. |
 | `error.upload_too_large` | Fotoğraf çok büyük. 4 MB'tan küçük bir dosya dener misin? |
