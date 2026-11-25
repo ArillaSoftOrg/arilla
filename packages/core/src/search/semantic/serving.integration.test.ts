@@ -48,6 +48,8 @@ const RUN = `${SHOES}/kosu`;
 const WALK = `${SHOES}/yuruyus`;
 const BAGS = `${ROOT}/canta`;
 const HNSW_NAME = `pte_hnsw_${suffix}_v1`;
+/** Plan istikrari icin modelde kategorisiz, yayinda olmayan dolgu vektoru sayisi (asagida). */
+const PLAN_PAD_ROWS = 2000;
 const INDEX: SemanticIndex = {
   modelVersion: MODEL,
   table: "product_text_embedding",
@@ -64,6 +66,20 @@ function axis(index: number, tilt = 0): number[] {
 }
 
 const literal = (v: number[]) => `[${v.join(",")}]`;
+
+/**
+ * Plan dolgusu vektoru: eksen 10'a (sorgu) kosinus benzerligi `i`ye gore 0..0,85; geri kalani
+ * 10 ve 11 disindaki boyutlarda deterministik gurultu. Yayilim HNSW grafigini gezilebilir tutar.
+ */
+function padVector(i: number): string {
+  const similarity = (0.85 * i) / PLAN_PAD_ROWS;
+  const noise = Array.from({ length: 768 }, (_, d) =>
+    d === 10 || d === 11 ? 0 : Math.sin((i + 1) * (d + 1) * 12.9898) * 0.5,
+  );
+  const norm = Math.hypot(...noise);
+  const rest = Math.sqrt(1 - similarity * similarity);
+  return literal(noise.map((value, d) => (d === 10 ? similarity : (value / norm) * rest)));
+}
 
 /**
  * `noSort`: kucuk paylasilan test tablosunda `(model_version, content_hash)` B-tree'si + Sort
@@ -158,11 +174,35 @@ describe("kategori kaynagi + anlamsal sunum (gercek PG)", () => {
       await make("nocat", `${word} kategorisiz ayakkabi`, null, 100_000, axis(10, 0.1));
       await make("pricey", `${word} pahali kosu ayakkabisi`, RUN, 900_000, axis(10, 0.05));
       await make("semonly", "Hafif antrenman sneaker modeli", RUN, 120_000, axis(10, 0.15));
+      // Uretim oranini taklit eden dolgu: modelin vektoru katalogun genelinde, kategori ise dar.
+      // Bu olmadan modelde yalniz 6 satir olur ve planlayici (dogru olarak) vektor tablosundan
+      // baslar; kategori ici sablonun EXPLAIN'i paylasilan test DB'sindeki baska verilere gore
+      // degisir (flaky). Dolgu: taslak (yayinda degil), kategorisiz; sonuca girmez, afterAll'daki
+      // slug deseniyle silinir. Vektorler sorguya 0..0,85 benzerlikte yayilir (test urunleri
+      // >= 0,95): ozdes ya da hepsi dik dolgu HNSW grafiginde gercek komsulari kacirtir.
+      await client.query(
+        `WITH pad AS (
+           INSERT INTO product
+             (slug, title, category_id, publication_state, source_merchant_id, source_external_id)
+           SELECT 'pad' || g || '-' || $1::text, 'pad ' || g, NULL, 'draft', $2::bigint,
+                  'pad-' || g
+           FROM generate_series(1, cardinality($4::text[])) g
+           RETURNING id, source_external_id)
+         INSERT INTO product_text_embedding
+           (product_id, model_version, text_version, content_hash, source_hash, embedding)
+         SELECT pad.id, $3::text, 1, decode(md5(pad.id::text), 'hex'),
+                decode(md5(pad.id::text), 'hex'),
+                ($4::text[])[substr(pad.source_external_id, 5)::int]::halfvec(768)
+         FROM pad`,
+        [suffix, merchant, MODEL, Array.from({ length: PLAN_PAD_ROWS }, (_, i) => padVector(i))],
+      );
       await client.query(
         `CREATE INDEX ${HNSW_NAME} ON product_text_embedding
            USING hnsw (embedding halfvec_cosine_ops) WHERE model_version = '${MODEL}'`,
       );
       await client.query("ANALYZE product_text_embedding");
+      await client.query("ANALYZE product");
+      await client.query("ANALYZE category");
     });
     await refreshProductAggregates(db, { productIds: Object.values(ids) });
   });
@@ -340,7 +380,7 @@ describe("kategori kaynagi + anlamsal sunum (gercek PG)", () => {
       const r = await db.execute<{ n: number }>(
         sql`SELECT count(*)::int AS n FROM product WHERE slug LIKE ${`%-${suffix}`}`,
       );
-      expect(r.rows[0]?.n).toBe(6);
+      expect(r.rows[0]?.n).toBe(6 + PLAN_PAD_ROWS);
     });
   });
 
