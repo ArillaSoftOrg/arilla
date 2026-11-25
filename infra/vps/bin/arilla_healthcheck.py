@@ -503,6 +503,15 @@ def feeds_current(since: datetime | None, rows: list[dict] | None) -> tuple[dict
     return current, prev
 
 
+#: Boyut kapisi karantinasi kendiliginden kalkmaz (karar 0152/0175): alarm ne yapilacagini soyler.
+QUARANTINE_HINT = ("karantina: insan onayi gerekir (feeds quarantine / approve-drop --level; "
+                   "docs/ops.md 'Karantinadaki kuculmeyi onaylama')")
+
+
+def quarantine_hint(problems: str | None) -> str:
+    return f"; {QUARANTINE_HINT}" if "too_few_records" in (problems or "") else ""
+
+
 def classify_feeds_failure(exec_status: int | None, since: datetime | None, rows: list[dict] | None,
                            now: datetime, t: dict = THRESHOLDS) -> tuple[str, str]:
     """Basarisiz gunluk besleme biriminin seviyesi ve mesaji (karar 0184).
@@ -520,9 +529,10 @@ def classify_feeds_failure(exec_status: int | None, since: datetime | None, rows
         return CRIT, f"bu kosuya ait {FEEDS_JOB} kaydi yok (cikis {exec_status})"
     problems = current.get("problems") or "-"
     ok, why = feeds_partial_tolerable(current, now, t)
+    hint = quarantine_hint(problems)
     if ok and exec_status == 1:
-        return INFO, f"{FEEDS_JOB}=partial: {problems}; {why}"
-    return CRIT, f"{FEEDS_JOB}={current.get('status')}: {problems}; {why} (cikis {exec_status})"
+        return INFO, f"{FEEDS_JOB}=partial: {problems}; {why}{hint}"
+    return CRIT, f"{FEEDS_JOB}={current.get('status')}: {problems}; {why} (cikis {exec_status}){hint}"
 
 
 def feeds_info_repeats(since: datetime | None, rows: list[dict] | None, now: datetime,

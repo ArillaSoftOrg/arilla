@@ -570,6 +570,16 @@ class FeedsClassifyTest(unittest.TestCase):
         self.assertEqual(level, hc.CRIT)
         self.assertIn("taze teklif %0", msg)
 
+    def test_quarantine_hint_only_for_size_gate(self):
+        # 14-25 Kas 2026: karantina 12 gun CRIT verdi ama ne yapilacagini soylemedi.
+        level, msg = self.lvl([frow(CUR, fresh=0, problems="feed_14:too_few_records; feed_7:behind")])
+        self.assertEqual(level, hc.CRIT)
+        self.assertIn("approve-drop --level", msg)
+        info_level, info_msg = self.lvl([frow(CUR, problems="feed_7:too_few_records")])
+        self.assertEqual(info_level, hc.INFO)
+        self.assertIn("karantina", info_msg)
+        self.assertNotIn("karantina", self.lvl([frow(CUR)])[1])
+
     def test_ratio_threshold(self):
         self.assertEqual(self.lvl([frow(CUR, active=100, fresh=25)])[0], hc.INFO)
         self.assertEqual(self.lvl([frow(CUR, active=100, fresh=24)])[0], hc.CRIT)

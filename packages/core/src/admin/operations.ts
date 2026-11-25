@@ -29,6 +29,7 @@ import { readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
 import type { CostSummary } from "./cost-truth.ts";
 import { MATCH_QUEUE_ALERT_THRESHOLD } from "./dashboard.ts";
+import { type FeedQuarantineItem, listFeedQuarantine } from "./feed-quarantine.ts";
 import { type JobRunSummary, readJobRunSummary } from "./job-runs.ts";
 import { listMerchantAttention, type MerchantAttentionItem } from "./merchant-attention.ts";
 import { getPipelineEvidence, type PipelineRawEvidence } from "./pipeline-evidence.ts";
@@ -355,6 +356,8 @@ export interface OperationsOverview {
   costWindow: Check<CostWindow>;
   /** Dikkat gerektiren aktif mağazalar (karar 0051). */
   merchants: Check<MerchantAttentionItem[]>;
+  /** Onay bekleyen besleme karantinası (karar 0152/0175). */
+  feedQuarantine: Check<FeedQuarantineItem[]>;
 }
 
 export async function getOperationsOverview(
@@ -363,18 +366,29 @@ export async function getOperationsOverview(
 ): Promise<OperationsOverview> {
   assertCapability(actor, "operations.read");
   const now = new Date();
-  const [partitions, cost, compliance, jobs, linkQueue, pipeline, jobRuns, window, merchants] =
-    await Promise.all([
-      check(() => partitionHealth(db, now)),
-      check(() => costByDay(db)),
-      check(() => complianceHealth(db)),
-      check(() => jobEvidence(db)),
-      check(() => linkQueueDepth(db)),
-      getPipelineEvidence(db, actor),
-      check(() => readJobRunSummary(db)),
-      check(() => costWindow(db)),
-      check(() => listMerchantAttention(db, actor, now)),
-    ]);
+  const [
+    partitions,
+    cost,
+    compliance,
+    jobs,
+    linkQueue,
+    pipeline,
+    jobRuns,
+    window,
+    merchants,
+    feedQuarantine,
+  ] = await Promise.all([
+    check(() => partitionHealth(db, now)),
+    check(() => costByDay(db)),
+    check(() => complianceHealth(db)),
+    check(() => jobEvidence(db)),
+    check(() => linkQueueDepth(db)),
+    getPipelineEvidence(db, actor),
+    check(() => readJobRunSummary(db)),
+    check(() => costWindow(db)),
+    check(() => listMerchantAttention(db, actor, now)),
+    check(() => listFeedQuarantine(db)),
+  ]);
   return {
     generatedAt: now,
     partitions,
@@ -386,6 +400,7 @@ export async function getOperationsOverview(
     jobRuns,
     costWindow: window,
     merchants,
+    feedQuarantine,
   };
 }
 
