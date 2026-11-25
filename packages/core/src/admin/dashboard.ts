@@ -16,9 +16,8 @@ import {
   linkResolutionRequest,
   matchCandidate,
   merchant,
-  offer,
 } from "@arilla/db";
-import { and, count, eq, gte, isNull, sql, sum } from "drizzle-orm";
+import { count, eq, gte, sql, sum } from "drizzle-orm";
 import { SEARCH_QUALITY_TIME_ZONE } from "../search/quality.ts";
 import { readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
@@ -33,8 +32,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export interface AdminOverview {
   generatedAt: Date;
   pendingMatches: number;
-  /** Aktif ama henüz bir ürüne bağlanmamış teklifler. */
-  unmatchedOffers: number;
+  /**
+   * Aktif ama henüz bir ürüne bağlanmamış teklifler. Milyonluk teklif tablosunda tam sayım
+   * sürede bitmezse kısmi indeksin istatistiğinden tahmin (`approximate`); o da yoksa null.
+   */
+  unmatchedOffers: { n: number; approximate: boolean } | null;
   merchants: { active: number; total: number };
   ingest: {
     /** Son 24 saatte başlayan koşular, duruma göre. */
@@ -78,6 +80,36 @@ async function boundedClicks7d(db: Database, since: Date): Promise<number | null
     });
   } catch {
     return null;
+  }
+}
+
+/**
+ * Eşleşmemiş aktif teklif sayısı. Üretimde ~1M satır: tam `count(*)` 17-38 sn sürüp yönetim
+ * ana sayfasını kilitliyordu. Önce 2 sn sınırlı tam sayım; aşarsa yüklem birebir aynı kısmi
+ * indeksin (`offer_unmatched_first_seen_idx`, 0072) `reltuples` istatistiği (ANALYZE/VACUUM ile
+ * güncellenir) "tahmini" olarak döner.
+ */
+async function boundedUnmatchedOffers(
+  db: Database,
+): Promise<{ n: number; approximate: boolean } | null> {
+  try {
+    return await readOnly(db, 2_000, async (tx) => {
+      const result = await tx.execute<{ n: number }>(
+        sql`SELECT count(*)::int AS n FROM offer WHERE product_id IS NULL AND is_active`,
+      );
+      return { n: Number(result.rows[0]?.n ?? 0), approximate: false };
+    });
+  } catch {
+    try {
+      const result = await db.execute<{ n: number }>(
+        sql`SELECT reltuples::bigint AS n FROM pg_class
+            WHERE oid = to_regclass('public.offer_unmatched_first_seen_idx')`,
+      );
+      const n = Number(result.rows[0]?.n ?? -1);
+      return n >= 0 ? { n, approximate: true } : null;
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -130,10 +162,7 @@ export async function getAdminOverview(db: Database, actor: AdminActor): Promise
     engagement,
   ] = await Promise.all([
     db.select({ n: count() }).from(matchCandidate).where(eq(matchCandidate.status, "pending")),
-    db
-      .select({ n: count() })
-      .from(offer)
-      .where(and(isNull(offer.productId), eq(offer.isActive, true))),
+    boundedUnmatchedOffers(db),
     db
       .select({
         total: count(),
@@ -180,7 +209,7 @@ export async function getAdminOverview(db: Database, actor: AdminActor): Promise
   return {
     generatedAt: now,
     pendingMatches: pending[0]?.n ?? 0,
-    unmatchedOffers: unmatched[0]?.n ?? 0,
+    unmatchedOffers: unmatched,
     merchants: {
       active: merchantCounts[0]?.active ?? 0,
       total: merchantCounts[0]?.total ?? 0,

@@ -200,8 +200,12 @@ export default async function AdminOverviewPage() {
             />
             <KpiCard
               label="Eşleşmemiş aktif teklif"
-              value={formatCount(overview.unmatchedOffers)}
-              basis="count"
+              value={
+                overview.unmatchedOffers === null
+                  ? "Hesaplanamadı"
+                  : `${overview.unmatchedOffers.approximate ? "≈ " : ""}${formatCount(overview.unmatchedOffers.n)}`
+              }
+              basis={overview.unmatchedOffers?.approximate === false ? "count" : "estimate"}
               href={linkIf("catalog.read", "/yonetim/katalog/teklifler?durum=unmatched")}
             />
             <KpiCard
