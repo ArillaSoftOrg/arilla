@@ -91,8 +91,9 @@ POLICIES: dict[str, SourcePolicy] = {
 
 #: Urunu YALNIZCA kaynak ilani hattindan (taslak -> kapi -> acik yayin) acilan magazalar.
 #: Cozumleyici (`python -m resolve`) bu magazalarin tekliflerinden urun ACMAZ ve onlari
-#: baslik/gorsel benzerligiyle baska urune baglamaz (karar 0130).
-SOURCE_LISTING_MERCHANTS: frozenset[str] = registry.listing_only_slugs() & frozenset(POLICIES)
+#: baslik/gorsel benzerligiyle baska urune baglamaz (karar 0130). Kimlik kurali olmasa da
+#: (kayit `sample`) dislanir: kapiyi atlayan yol kalmaz (karar 0221).
+SOURCE_LISTING_MERCHANTS: frozenset[str] = registry.listing_only_slugs()
 
 
 @dataclass(frozen=True)

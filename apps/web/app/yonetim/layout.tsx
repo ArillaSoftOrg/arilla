@@ -1,4 +1,4 @@
-import { adminHostPolicy, hasCapability, publicSiteHref } from "@arilla/core";
+import { adminHostPolicy, hasCapability, isSourceFlagEnabled, publicSiteHref } from "@arilla/core";
 import { SkipLink } from "@arilla/ui";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
@@ -33,6 +33,7 @@ export default async function YonetimLayout({ children }: { children: ReactNode 
     label: group.label,
     items: group.items
       .filter((item) => hasCapability(user.role, item.capability))
+      .filter((item) => !item.collectionSource || isSourceFlagEnabled(item.collectionSource))
       .map(({ href, label, description }) => ({ href, label, description })),
   })).filter((group) => group.items.length > 0);
   const roleLabel = ROLE_LABEL[user.role] ?? user.role;

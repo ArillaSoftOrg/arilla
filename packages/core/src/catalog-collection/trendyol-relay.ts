@@ -166,6 +166,7 @@ function toRecord(item: TrendyolIntakeItem): Record<string, unknown> {
     imageUrl: item.imageUrl,
     imageUrls: item.imageUrls.length > 0 ? item.imageUrls : null,
     brand: item.brand,
+    gtin: item.gtin,
     categoryRaw: item.categoryRaw,
     sellerExternalId: item.sellerExternalId,
     sellerName: item.sellerName,

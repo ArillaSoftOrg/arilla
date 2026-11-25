@@ -7,7 +7,11 @@ testleri gosterir. Gercek kaynak eklerken esleme gercek orneklerden yeniden yazi
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from platforms.adapters.mapping import FieldMapping
+from platforms.constraints import SourceConstraints, UpdateLimits, UsageRights
+from platforms.registry import MerchantInfo, SourceDefinition
 
 HEPSIBURADA_SAMPLE_MAPPING = FieldMapping(
     listing_id="sku",
@@ -41,6 +45,27 @@ TRENDYOL_SAMPLE_MAPPING = FieldMapping(
     images="images",
     image_key="url",
     options={"renk": "color"},
+)
+
+#: SENTETIK cok saticili Trendyol API ornegi (`trendyol_sample.json`). KAYIT DEFTERINDE DEGILDIR
+#: (`register` edilmez): gercek Trendyol kaynagi (karar 0118) urun basina tek tekliftir ve
+#: `registry.TRENDYOL` ile tanimlidir. Bu tanim yalniz `listing_seller` anahtar semasinin pazar
+#: yeri davranisini (ayni ilan, birden cok satici) adapter testlerinde gostermek icindir.
+TRENDYOL_API_SAMPLE = SourceDefinition(
+    slug="trendyol",
+    kind="api",
+    status="sample",
+    currency="TRY",
+    is_marketplace=True,
+    offer_key_scheme="listing_seller",
+    merchant=MerchantInfo(name="Trendyol", domain="trendyol.com", source_type="user_discovered"),
+    constraints=SourceConstraints(
+        rights=UsageRights(
+            data_license="operator_collected", may_store_prices=True, may_display_prices=True
+        ),
+        update=UpdateLimits(min_refresh_interval=timedelta(hours=24), max_concurrency=1),
+    ),
+    notes="Sentetik ornek; kayit defterinde yok.",
 )
 
 #: Genel CSV (`generic.csv`): noktali virgul, Turkce ondalik.

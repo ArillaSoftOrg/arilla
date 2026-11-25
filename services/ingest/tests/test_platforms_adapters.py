@@ -31,6 +31,7 @@ from platforms.adapters.samples import (
     HEPSIBURADA_SAMPLE_MAPPING,
     TRENDYOL_SAMPLE_MAPPING,
 )
+from platforms.adapters.samples import TRENDYOL_API_SAMPLE as TRENDYOL
 from platforms.constraints import SourceConstraints
 from platforms.contract import (
     CanonicalListing,
@@ -42,7 +43,6 @@ from platforms.contract import (
 from platforms.registry import (
     HEPSIBURADA,
     HEPSIBURADA_URL,
-    TRENDYOL,
     MerchantInfo,
     SourceDefinition,
 )

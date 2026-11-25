@@ -10,11 +10,12 @@ from platforms.adapters.samples import (
     HEPSIBURADA_SAMPLE_MAPPING,
     TRENDYOL_SAMPLE_MAPPING,
 )
+from platforms.adapters.samples import TRENDYOL_API_SAMPLE as TRENDYOL
 from platforms.constraints import SourceConstraints, UpdateLimits
 from platforms.contract import CanonicalListing, Checkpoint
 from platforms.flow import BatchResult, ChangeFilter, FilteringSink, run_source
 from platforms.matching import match_listings
-from platforms.registry import HEPSIBURADA, TRENDYOL
+from platforms.registry import HEPSIBURADA
 
 FIXTURES = Path(__file__).parent / "fixtures" / "platforms"
 NOW = datetime(2026, 10, 31, 12, 0, tzinfo=UTC)

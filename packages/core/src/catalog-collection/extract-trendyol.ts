@@ -17,6 +17,9 @@
  *  - JSON-LD `offers.price` SATIS FIYATI DEGILDIR (sepet fiyatina esit olabilir; Samba 3.999,50 / 7.999).
  *  - Satis fiyati okunamazsa kayit URETILMEZ (fiyat uydurulmaz); `dropped.price_unverified` sayilir.
  *
+ * BARKOD (karar 0221): urun sayfasinda kazanan varyantin `barcode` alani, yalniz GS1 kontrol basamagi
+ * dogruysa `gtin` olarak tasinir (HB ile eslestirme kaniti). Liste karti barkod tasimaz; uydurulmaz.
+ *
  * ALINMAYANLAR: diger saticilarin teklifleri, stok, saticinin kisisel/kurumsal bilgileri (vergi no,
  * KEP, adres, unvan), yorumlar, ozellik listeleri. Satici icin yalniz `id` ve `name`.
  */
@@ -48,6 +51,8 @@ export interface TrendyolIntakeItem {
   imageUrl: string | null;
   imageUrls: string[];
   brand: string | null;
+  /** Kazanan varyantin GS1 barkodu (kontrol basamagi dogru); yoksa null. */
+  gtin: string | null;
   categoryRaw: string | null;
   sellerExternalId: string | null;
   sellerName: string | null;
@@ -145,6 +150,19 @@ const digits = (v: unknown): string | null =>
   (typeof v === "number" || typeof v === "string") && /^[0-9]{1,20}$/.test(String(v))
     ? String(v)
     : null;
+
+/** GS1 kontrol basamagi (GTIN-8/12/13/14); `admin/catalog-quality.ts` `isValidGtin` ile ayni. */
+export function trendyolGtin(v: unknown): string | null {
+  const code = typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : "";
+  if (!/^[0-9]+$/.test(code) || ![8, 12, 13, 14].includes(code.length) || /^0+$/.test(code)) {
+    return null;
+  }
+  const digits = [...code].map(Number);
+  const check = digits[digits.length - 1];
+  const body = digits.slice(0, -1).reverse();
+  const total = body.reduce((sum, d, i) => sum + d * (i % 2 === 0 ? 3 : 1), 0);
+  return (10 - (total % 10)) % 10 === check ? code : null;
+}
 
 /** `{value, text}` ya da sayi -> kurus. */
 const money = (v: unknown): number | null => decimalToKurus(obj(v) ? (v as Json).value : v);
@@ -304,6 +322,8 @@ function extractProductPage(input: TrendyolPageInputs, shared: Json): TrendyolEx
         imageUrl: images[0] ?? null,
         imageUrls: images,
         brand,
+        // Barkod fiyatin ait oldugu (kazanan) varyantindir; beden degisirse 0118 §3 tutar.
+        gtin: trendyolGtin(winner?.barcode),
         categoryRaw: text(obj(product.category)?.name, 500),
         sellerExternalId: digits(merchant?.id),
         sellerName: text(merchant?.name, 200),
@@ -382,6 +402,8 @@ function extractListingPage(input: TrendyolPageInputs, props: Json): TrendyolExt
       imageUrl: images[0] ?? null,
       imageUrls: images,
       brand,
+      // Liste karti barkod tasimaz; uydurulmaz.
+      gtin: null,
       categoryRaw: text(obj(c.category)?.name, 500),
       sellerExternalId: digits(c.merchantId),
       // Liste karti satici adini tasimaz; uydurulmaz.

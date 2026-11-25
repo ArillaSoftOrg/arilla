@@ -103,9 +103,9 @@ def _add(owner: psycopg.Connection, run_id: int, cid: str, price: int, **kw: obj
                    (run_id, external_id, title, url, price_minor, list_price_minor, currency,
                     in_stock, image_url, image_urls, brand, seller_external_id, seller_name,
                     group_external_id, variant_external_id, variant_label, basket_price_minor,
-                    source_page, source_observed_at)
+                    source_page, gtin, source_observed_at)
                VALUES (%s, %s, %s, %s, %s, %s, 'TRY', NULL, %s, %s::jsonb, %s, %s, %s, %s, %s,
-                       %s, %s, %s, now())""",
+                       %s, %s, %s, %s, now())""",
             (
                 run_id,
                 cid,
@@ -123,6 +123,7 @@ def _add(owner: psycopg.Connection, run_id: int, cid: str, price: int, **kw: obj
                 kw.get("variant_label"),
                 kw.get("basket"),
                 kw.get("page", "product_page"),
+                kw.get("gtin"),
             ),
         )
 
@@ -343,3 +344,37 @@ def test_ndjson_satiri_sepet_fiyatini_satis_fiyatindan_ayri_tasir() -> None:
     assert to_feed_row(row, unknown_stock_available=True)["available"] == "true"
     assert to_feed_row(row)["available"] == "false"
     assert to_feed_row(row, unknown_stock_available=True)["param"]["stock_state"] == "unknown"
+
+
+def test_barkod_ve_marka_teklife_gecer_cozumleyici_trendyolu_almaz(
+    env: psycopg.Connection,
+) -> None:
+    """Karar 0221: urun sayfasinin barkodu/markasi HB ile eslestirme girdisidir; Trendyol
+    teklifi puanli cozumleyiciden (kapisiz urun acma) DISLANIR."""
+    from catalog_build.policy import SOURCE_LISTING_MERCHANTS
+    from resolve.pipeline import PENDING_OFFERS
+
+    run = _new_run(env)
+    _add(env, run, "813659620", 799900, gtin="4066765863300", variant_id="1", variant_label="38")
+    _close(env, run)
+    assert _merge(run).status == "success"  # type: ignore[attr-defined]
+    with env.cursor() as cur:
+        cur.execute(
+            "SELECT o.attributes_raw->>'gtin', o.brand_raw, o.product_id"
+            " FROM offer o JOIN merchant m"
+            " ON m.id = o.merchant_id WHERE m.slug = 'trendyol'"
+        )
+        # FeedSync barkodu GTIN-14e normalize eder (HB ile ayni bicim).
+        assert cur.fetchone() == ("04066765863300", "Marka", None)
+        cur.execute("SELECT id FROM merchant WHERE slug = 'trendyol'")
+        merchant = cur.fetchone()
+        assert merchant
+        cur.execute(
+            PENDING_OFFERS,
+            {
+                "source_listing": sorted(SOURCE_LISTING_MERCHANTS),
+                "merchant_id": merchant[0],
+                "limit": 10,
+            },
+        )
+        assert cur.fetchall() == []

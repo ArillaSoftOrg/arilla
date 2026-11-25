@@ -62,7 +62,7 @@ export default async function TrendyolCollectionPage() {
       <Section
         id="aktarim"
         title="Aktarım"
-        description="Okunan: ürün kimliği, ad, satış fiyatı, görseller, kanonik bağlantı, ana satıcı, fiyatın ait olduğu beden. Okunmayan: diğer satıcıların teklifleri, stok, satıcı kişisel bilgileri, yorumlar. Sepet indirimi satış fiyatı sayılmaz. Her açılan ürün ya da liste sayfası bir istektir."
+        description="Okunan: ürün kimliği, ad, marka, satış fiyatı, görseller, kanonik bağlantı, ana satıcı, fiyatın ait olduğu beden ve onun barkodu. Okunmayan: diğer satıcıların teklifleri, stok, satıcı kişisel bilgileri, yorumlar. Sepet indirimi satış fiyatı sayılmaz. Her açılan ürün ya da liste sayfası bir istektir."
       >
         <TrendyolRelayClient
           canStart={q.canStart}

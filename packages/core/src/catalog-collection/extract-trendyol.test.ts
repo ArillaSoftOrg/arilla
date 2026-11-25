@@ -4,6 +4,7 @@ import {
   collectTrendyolPageInputs,
   extractTrendyolPage,
   type TrendyolPageInputs,
+  trendyolGtin,
   trendyolInputsFromHtml,
 } from "./extract-trendyol.ts";
 import iphone from "./fixtures/iphone-857296094.json";
@@ -68,6 +69,28 @@ describe("urun sayfasi: sepet indirimi satis fiyatiyla karistirilmaz (Samba, goz
     expect(item?.variantExternalId).toBe("1084850373");
     expect(item?.variantLabel).toBe("38");
     expect(item?.sellerExternalId).toBe("106871");
+  });
+
+  it("barkod ve marka: kazanan varyantin barkodu (karar 0221), diger bedenlerinki degil", () => {
+    expect(item?.gtin).toBe("4066765863300");
+    expect(item?.brand).toBe("adidas");
+  });
+});
+
+describe("barkod (karar 0221): yalniz GS1 kontrol basamagi dogruysa", () => {
+  it("iPhone (UPC-12) okunur; liste karti barkod tasimaz", () => {
+    expect(extractTrendyolPage(input(iphone)).items[0]?.gtin).toBe("195949771569");
+    for (const i of extractTrendyolPage(input(listing)).items) expect(i.gtin).toBeNull();
+  });
+
+  it("bozuk kontrol basamagi, yanlis uzunluk, harf ve sifirlar reddedilir", () => {
+    expect(trendyolGtin("4066765863300")).toBe("4066765863300");
+    expect(trendyolGtin(4066765863300)).toBe("4066765863300");
+    expect(trendyolGtin("4066765863301")).toBeNull();
+    expect(trendyolGtin("40667658633")).toBeNull();
+    expect(trendyolGtin("ABC1234567890")).toBeNull();
+    expect(trendyolGtin("0000000000000")).toBeNull();
+    expect(trendyolGtin(null)).toBeNull();
   });
 });
 
@@ -204,6 +227,8 @@ describe("sunucu dogrulamasi (Trendyol kurallari)", () => {
         basketPriceMinor: 399_950,
         variantExternalId: "1084850373",
         sellerName: "SuperStep",
+        gtin: "4066765863300",
+        brand: "adidas",
         sourcePage: "product_page",
       });
     }
