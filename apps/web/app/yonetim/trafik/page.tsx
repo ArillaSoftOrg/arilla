@@ -15,6 +15,7 @@ import {
   TrafficRangeError,
   type TrafficTotals,
 } from "@arilla/core";
+import { parseGtmId } from "@arilla/core/gtm";
 import Link from "next/link";
 import { Suspense } from "react";
 import { requireCapability } from "../../lib/dal.ts";
@@ -153,6 +154,18 @@ export default async function TrafficPage({ searchParams }: { searchParams: Prom
   );
 }
 
+/**
+ * Karar 0216: GTM tanımlıysa GA4 etiketi kapsayıcının içinde çalışır (sitede
+ * doğrudan gtag.js yok); toplama yalnızca GA4_MEASUREMENT_ID'ye bakılarak
+ * "etkin değil" sayılmamalı.
+ */
+function ga4CollectionLabel(): string {
+  if (parseGtmId(process.env.GTM_CONTAINER_ID) !== null) {
+    return "Google Tag Manager üzerinden etkin (GA4 etiketi kapsayıcıda)";
+  }
+  return isGa4MeasurementActive() ? "doğrudan ölçüm betiğiyle etkin" : "etkin değil";
+}
+
 function TrafficSkeleton() {
   return (
     <div
@@ -190,20 +203,26 @@ async function TrafficData({
     { store: redisTrafficCacheStore(), transport: ga4ServerTransport() },
   );
 
-  if (result.state === "not_configured" || result.state === "invalid_config") {
-    const keys = result.state === "not_configured" ? result.missing : result.problems;
+  if (result.state === "not_configured") {
+    // Panel bağlantısı isteğe bağlıdır: trafik doğrudan GA4 arayüzünde izlenebilir.
     return (
-      <Notice
-        tone="warning"
-        title={
-          result.state === "not_configured"
-            ? "GA4 raporlaması bağlı değil"
-            : "GA4 raporlama ayarı geçersiz"
-        }
-      >
-        {`${result.state === "not_configured" ? "Tanımsız" : "Geçersiz"}: ${keys.join(", ")}. `}
-        Toplama (ölçüm betiği) {isGa4MeasurementActive() ? "bu dağıtımda etkin" : "da etkin değil"}.
-        Kurulum adımları docs/ops.md → "GA4"; durum{" "}
+      <Notice tone="info" title="GA4 raporlaması panele bağlı değil (isteğe bağlı)">
+        Trafik verisi doğrudan{" "}
+        <a href="https://analytics.google.com/" target="_blank" rel="noopener noreferrer">
+          GA4 arayüzünde
+        </a>{" "}
+        izlenebilir. Toplama: {ga4CollectionLabel()}. Panelde göstermek için tanımlanacaklar:{" "}
+        {result.missing.join(", ")} (docs/ops.md → "GA4"); durum{" "}
+        <Link href="/yonetim/ayarlar#grup-analytics">Yapılandırma</Link> sayfasında. Sayı
+        gösterilmez: veri yokken tahmin üretilmez.
+      </Notice>
+    );
+  }
+  if (result.state === "invalid_config") {
+    return (
+      <Notice tone="warning" title="GA4 raporlama ayarı geçersiz">
+        {`Geçersiz: ${result.problems.join(", ")}. `}
+        Toplama: {ga4CollectionLabel()}. Kurulum adımları docs/ops.md → "GA4"; durum{" "}
         <Link href="/yonetim/ayarlar#grup-analytics">Yapılandırma</Link> sayfasında. Sayı
         gösterilmez: veri yokken tahmin üretilmez.
       </Notice>
