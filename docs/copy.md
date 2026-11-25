@@ -699,6 +699,7 @@ mutasyonu aynı yeteneği tekrar denetler (docs/decisions/0039).
 | `admin.merchants.aggregates_pending` | Kaydedildi. Ürünlerin fiyat özeti gece onarımında tamamlanacak. |
 | `admin.ingest.title` | Veri toplama |
 | `admin.ingest.note` | Koşular komut satırı ya da zamanlayıcıdan çalışır; bu ekran yalnızca izlerini gösterir. |
+| `admin.ingest.quarantine_note` | Karantinada: dosya önceki sürümlerden çok küçük. Kendiliğinden kalkmaz; onay komutu İşlemler sayfasında. |
 | `admin.catalog.products_title` | Ürünler |
 | `admin.catalog.offers_title` | Teklifler |
 | `admin.search_diagnostics.title` | Arama tanısı |

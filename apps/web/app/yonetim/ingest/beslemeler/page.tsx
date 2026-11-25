@@ -128,7 +128,13 @@ export default async function FeedSourcesPage({
                     <td>{formatDateOrDash(feed.lastSuccessAt)}</td>
                     <td>
                       {feed.snapshot ? statusLabel(feed.snapshot.status) : "—"}
-                      {feed.snapshot?.rejectReason ? (
+                      {feed.snapshot?.rejectReason === "too_few_records" ? (
+                        <div className={styles.meta}>
+                          {/* docs/copy.md admin.ingest.quarantine_note (karar 0152/0175) */}
+                          Karantinada: dosya önceki sürümlerden çok küçük. Kendiliğinden kalkmaz;
+                          onay komutu <Link href="/yonetim/islemler">İşlemler</Link> sayfasında.
+                        </div>
+                      ) : feed.snapshot?.rejectReason ? (
                         <div className={styles.meta}>{feed.snapshot.rejectReason}</div>
                       ) : null}
                     </td>

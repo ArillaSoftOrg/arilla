@@ -15,6 +15,7 @@
  * durumdan yeniden türetilir.
  */
 import { MATCH_QUEUE_ALERT_THRESHOLD } from "./dashboard.ts";
+import { feedQuarantineFindings } from "./feed-quarantine.ts";
 import { type JobRunSummary, jobLabel, KNOWN_JOBS } from "./job-runs.ts";
 import type { AttentionState, MerchantAttentionItem } from "./merchant-attention.ts";
 import type {
@@ -777,11 +778,23 @@ export function operationsFindings(ops: OperationsOverview): AdminFinding[] {
         ),
       ];
   const discovery = discoveryFinding(ops.jobs, now);
+  const quarantine: AdminFinding[] = ops.feedQuarantine.ok
+    ? feedQuarantineFindings(ops.feedQuarantine.value, now)
+    : [
+        unknown(
+          "feeds.quarantine",
+          "Besleme karantinası",
+          ops.feedQuarantine.error,
+          "/yonetim/ingest/beslemeler",
+          now,
+        ),
+      ];
   return sortFindings([
     ...partitionFindings(ops.partitions, now),
     ...jobRunFindings(ops.jobRuns, now),
     ...pipelineFindings(evaluatePipeline(ops.pipeline, now), now),
     ...merchants,
+    ...quarantine,
     ...(ops.jobs.ok ? [matchingBacklogFinding(ops.jobs.value.pendingMatches, now)] : []),
     ...(discovery ? [discovery] : []),
     linkQueueFinding(ops.linkQueue, now),
