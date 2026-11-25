@@ -294,7 +294,9 @@ const PAGES: { name: string; admin: boolean; call: () => Promise<unknown> }[] = 
       const previous = process.env.TRENDYOL_COLLECTION_ENABLED;
       process.env.TRENDYOL_COLLECTION_ENABLED = "true";
       try {
-        return await (await import("./katalog/toplama/trendyol/page.tsx")).default();
+        return await (await import("./katalog/toplama/trendyol/page.tsx")).default({
+          searchParams: Promise.resolve({}),
+        });
       } finally {
         if (previous === undefined) delete process.env.TRENDYOL_COLLECTION_ENABLED;
         else process.env.TRENDYOL_COLLECTION_ENABLED = previous;

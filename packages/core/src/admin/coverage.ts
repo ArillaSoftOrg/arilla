@@ -101,6 +101,8 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
       "collection_run",
       "collection_unit",
       "collection_usage_day",
+      // Karar 0221: zamanlanmis yonetici tarayicisi toplamasi.
+      "collection_schedule",
       "catalog_intake_record",
       "catalog_discovery",
     ],

@@ -27,6 +27,7 @@
     "./catalog-collection-extract": "./src/catalog-collection/extract-hepsiburada.ts",
     "./catalog-collection-trendyol": "./src/catalog-collection/extract-trendyol.ts",
     "./catalog-collection-trendyol-relay": "./src/catalog-collection/trendyol-relay.ts",
+    "./catalog-collection-schedule-logic": "./src/catalog-collection/schedule-logic.ts",
     "./catalog-discovery-extract": "./src/catalog-collection/discovery-extract.ts",
     "./errors": "./src/errors/index.ts",
     "./price-history-view": "./src/product/price-history-view.ts",

@@ -38,7 +38,16 @@ export type ToPageMessage =
 export type ToExtensionMessage =
   | { channel: typeof RELAY_CHANNEL; type: "arm"; runId: number }
   | { channel: typeof RELAY_CHANNEL; type: "disarm" }
-  | { channel: typeof RELAY_CHANNEL; type: "ack"; captureIds: string[] };
+  | { channel: typeof RELAY_CHANNEL; type: "ack"; captureIds: string[] }
+  /**
+   * Zamanlanmis koşu (karar 0221): eklenti bu TEK adresi yoneticinin tarayicisinda toplama
+   * sekmesinde acar. Yalniz toplanabilir Trendyol urun/liste adresi; koşu silahli olmalidir.
+   */
+  | { channel: typeof RELAY_CHANNEL; type: "navigate"; runId: number; url: string }
+  /** Zamanlanmis koşu bitti: eklenti kendi actigi toplama sekmesini kapatir. */
+  | { channel: typeof RELAY_CHANNEL; type: "finish" }
+  /** Eklentinin yonetim sayfasini yeniden acmadan once bekleyecegi zaman (ISO). */
+  | { channel: typeof RELAY_CHANNEL; type: "schedule_hint"; nextCheckAt: string };
 
 /** Icerik betigi: acik sayfayi okur. Ag istegi atmaz. */
 export function captureTrendyolPage(
@@ -99,6 +108,28 @@ export function parseToExtensionMessage(data: unknown): ToExtensionMessage | nul
     return { channel: RELAY_CHANNEL, type: "arm", runId: data.runId as number };
   }
   if (data.type === "disarm") return { channel: RELAY_CHANNEL, type: "disarm" };
+  if (data.type === "finish") return { channel: RELAY_CHANNEL, type: "finish" };
+  if (
+    data.type === "navigate" &&
+    Number.isSafeInteger(data.runId) &&
+    (data.runId as number) > 0 &&
+    typeof data.url === "string" &&
+    data.url.length <= 2048 &&
+    isCollectibleTrendyolUrl(data.url)
+  ) {
+    return { channel: RELAY_CHANNEL, type: "navigate", runId: data.runId as number, url: data.url };
+  }
+  if (
+    data.type === "schedule_hint" &&
+    typeof data.nextCheckAt === "string" &&
+    !Number.isNaN(Date.parse(data.nextCheckAt))
+  ) {
+    return {
+      channel: RELAY_CHANNEL,
+      type: "schedule_hint",
+      nextCheckAt: new Date(data.nextCheckAt).toISOString(),
+    };
+  }
   if (data.type === "ack" && Array.isArray(data.captureIds)) {
     return {
       channel: RELAY_CHANNEL,

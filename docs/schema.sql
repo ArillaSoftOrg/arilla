@@ -2804,6 +2804,26 @@ CREATE INDEX collection_run_source_idx ON collection_run (source, reserved_at DE
 --     collection_source_reported_scope korunur (bildirilen izinde max_runs_per_month NOT NULL ve <= 4).
 --   collection_run: requests_reserved INTEGER (HTTP isteginden ONCE rezerve, azalmaz,
 --     requests_made <= requests_reserved <= max_requests), products_counted BIGINT.
+-- 0119 (karar 0221): zamanlanmis yonetici tarayicisi toplamasi. Kaynak basina tek satir; KAPALI gelir.
+-- Sunucu kaynaga istek atmaz; eklenti yoneticinin tarayicisinda sayfalari acar. Kota degismez.
+CREATE TABLE collection_schedule (
+    source            TEXT        PRIMARY KEY REFERENCES collection_source(source),
+    enabled           BOOLEAN     NOT NULL DEFAULT FALSE,
+    target_urls       JSONB       NOT NULL DEFAULT '[]'::jsonb
+                      CHECK (jsonb_typeof(target_urls) = 'array' AND jsonb_array_length(target_urls) <= 500),
+    pace_seconds      INTEGER     NOT NULL DEFAULT 45 CHECK (pace_seconds BETWEEN 20 AND 600),
+    updated_by        BIGINT      REFERENCES app_user(id) ON DELETE SET NULL,
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_attempt_at   TIMESTAMPTZ,
+    last_run_id       BIGINT      REFERENCES collection_run(id) ON DELETE SET NULL,
+    last_outcome      TEXT        CHECK (last_outcome IS NULL OR last_outcome IN
+                                         ('completed', 'aborted', 'blocked', 'budget', 'interrupted',
+                                          'start_refused', 'error')),
+    last_error_code   TEXT        CHECK (last_error_code IS NULL OR last_error_code ~ '^[a-z0-9_]{2,60}$'),
+    last_finished_at  TIMESTAMPTZ
+);
+-- arilla_app: SELECT/INSERT/UPDATE; DELETE/TRUNCATE yok.
+
 CREATE TABLE collection_usage_day (
     source      TEXT        NOT NULL REFERENCES collection_source(source),
     usage_date  DATE        NOT NULL,          -- UTC gun

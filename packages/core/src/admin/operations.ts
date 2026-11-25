@@ -27,6 +27,10 @@ import { IN_FLIGHT_TTL_MS } from "../discovery/link-resolution.ts";
 import { getLinkRedis } from "../redis/client.ts";
 import { readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
+import {
+  type CollectionScheduleItem,
+  listCollectionSchedules,
+} from "./collection-schedule-findings.ts";
 import type { CostSummary } from "./cost-truth.ts";
 import { MATCH_QUEUE_ALERT_THRESHOLD } from "./dashboard.ts";
 import { type FeedQuarantineItem, listFeedQuarantine } from "./feed-quarantine.ts";
@@ -358,6 +362,8 @@ export interface OperationsOverview {
   merchants: Check<MerchantAttentionItem[]>;
   /** Onay bekleyen besleme karantinası (karar 0152/0175). */
   feedQuarantine: Check<FeedQuarantineItem[]>;
+  /** Zamanlanmis yonetici tarayicisi toplamasi (karar 0221). */
+  collectionSchedules: Check<CollectionScheduleItem[]>;
 }
 
 export async function getOperationsOverview(
@@ -377,6 +383,7 @@ export async function getOperationsOverview(
     window,
     merchants,
     feedQuarantine,
+    collectionSchedules,
   ] = await Promise.all([
     check(() => partitionHealth(db, now)),
     check(() => costByDay(db)),
@@ -388,6 +395,7 @@ export async function getOperationsOverview(
     check(() => costWindow(db)),
     check(() => listMerchantAttention(db, actor, now)),
     check(() => listFeedQuarantine(db)),
+    check(() => listCollectionSchedules(db)),
   ]);
   return {
     generatedAt: now,
@@ -401,6 +409,7 @@ export async function getOperationsOverview(
     costWindow: window,
     merchants,
     feedQuarantine,
+    collectionSchedules,
   };
 }
 

@@ -10,6 +10,7 @@ export * from "./catalog-filters.ts";
 export * from "./catalog-panel.ts";
 export * from "./catalog-quality.ts";
 export * from "./chat-feedback.ts";
+export * from "./collection-schedule-findings.ts";
 export * from "./config-view.ts";
 export * from "./cost-truth.ts";
 export * from "./coverage.ts";

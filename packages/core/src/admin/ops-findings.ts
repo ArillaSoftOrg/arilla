@@ -14,6 +14,8 @@
  * Kalıcı alarm durumu, bildirim ya da genel log YOK: liste her bakışta mevcut
  * durumdan yeniden türetilir.
  */
+
+import { collectionScheduleFindings } from "./collection-schedule-findings.ts";
 import { MATCH_QUEUE_ALERT_THRESHOLD } from "./dashboard.ts";
 import { feedQuarantineFindings } from "./feed-quarantine.ts";
 import { type JobRunSummary, jobLabel, KNOWN_JOBS } from "./job-runs.ts";
@@ -795,6 +797,9 @@ export function operationsFindings(ops: OperationsOverview): AdminFinding[] {
     ...pipelineFindings(evaluatePipeline(ops.pipeline, now), now),
     ...merchants,
     ...quarantine,
+    ...(ops.collectionSchedules?.ok
+      ? collectionScheduleFindings(ops.collectionSchedules.value, now)
+      : []),
     ...(ops.jobs.ok ? [matchingBacklogFinding(ops.jobs.value.pendingMatches, now)] : []),
     ...(discovery ? [discovery] : []),
     linkQueueFinding(ops.linkQueue, now),

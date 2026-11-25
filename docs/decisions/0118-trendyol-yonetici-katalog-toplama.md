@@ -41,7 +41,7 @@ Kayıt: `permission_basis = 'written_email_reported'`. Bu değer, Hepsiburada sa
 | Kazanan varyantın barkodu (GS1 geçerliyse; karar 0221) ve marka | |
 | Kaynak ve okunma zamanı | |
 
-> **0221 (26 Kasım 2026):** Kayıt defteri §5'e hizalandı (`listing`, `listing_only`, `verified`); çözümleyici Trendyol tekliflerinden ürün açmaz; barkod kapsama eklendi.
+> **0221 (26 Kasım 2026):** Kayıt defteri §5'e hizalandı (`listing`, `listing_only`, `verified`); çözümleyici Trendyol tekliflerinden ürün açmaz; barkod kapsama eklendi. §B: "otomatik sekme gezintisi" reddi kaldırıldı — zamanlanmış koşu yalnız yöneticinin tarayıcısında, eklentiyle, aynı kotayla (varsayılan kapalı).
 
 ## Karar
 

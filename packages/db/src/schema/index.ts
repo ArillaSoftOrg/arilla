@@ -25,6 +25,7 @@ export * from "./auth.ts";
 export * from "./catalog.ts";
 export * from "./chat.ts";
 export * from "./collection.ts";
+export * from "./collection-schedule.ts";
 export * from "./creator.ts";
 export * from "./data-intelligence.ts";
 export * from "./discovery.ts";

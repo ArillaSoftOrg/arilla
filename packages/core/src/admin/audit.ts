@@ -138,7 +138,11 @@ export type AdminAction =
   /** Karar 0140: kapanan tam taramanın kaldırılma sayımı (görülen / eksik / kaldırılan). */
   | "catalog_collection.presence"
   /** Karar 0120: buyuk indirme onayi (bayt tavani, aktarim kaynagi); icerik YAZILMAZ. */
-  | "catalog_collection.approve_download";
+  | "catalog_collection.approve_download"
+  /** Karar 0221: zamanlanmis toplama (hedef sayisi/hiz, otomatik kosu acilisi, sonuc kodu). */
+  | "catalog_collection.schedule_update"
+  | "catalog_collection.scheduled_start"
+  | "catalog_collection.scheduled_outcome";
 
 export type AdminTargetType =
   | "match_candidate"
