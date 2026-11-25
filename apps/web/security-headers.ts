@@ -29,7 +29,7 @@ import {
 } from "@arilla/core/ga4-measurement";
 import {
   CLARITY_CONNECT_ORIGINS,
-  CLARITY_SCRIPT_ORIGIN,
+  CLARITY_SCRIPT_ORIGINS,
   GTM_CONNECT_ORIGINS,
   GTM_FRAME_ORIGIN,
   GTM_SCRIPT_ORIGIN,
@@ -74,7 +74,7 @@ export function contentSecurityPolicy(options: SecurityHeaderOptions): string {
         ...(options.development ? ["'unsafe-eval'"] : []),
         ...(options.ga4 || options.gtm ? [GA4_SCRIPT_ORIGIN] : []),
         ...(options.gtm ? [GTM_SCRIPT_ORIGIN] : []),
-        ...(options.clarity ? [CLARITY_SCRIPT_ORIGIN] : []),
+        ...(options.clarity ? CLARITY_SCRIPT_ORIGINS : []),
         ...(options.umamiOrigin ? [options.umamiOrigin] : []),
       ],
     ],

@@ -121,7 +121,7 @@ describe("trendShareMetadata", () => {
 
   it("sayfa başlığı korunur; önizleme başlığı marka eki taşımaz", () => {
     const meta = trendShareMetadata(base);
-    expect(meta.title).toBe("Kış montları – Arilla");
+    expect(meta.title).toBe("Kış montları – ManiCepte");
     expect(meta.alternates).toEqual({ canonical: "/trendler/kis-montlari" });
     expect(meta.openGraph).toMatchObject({
       siteName: "ManiCepte",

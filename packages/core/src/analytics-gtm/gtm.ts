@@ -42,6 +42,15 @@ export const GTM_CONNECT_ORIGINS = [
 ] as const;
 export const GTM_FRAME_ORIGIN = "https://www.googletagmanager.com";
 export const CLARITY_SCRIPT_ORIGIN = "https://www.clarity.ms";
+/**
+ * CSP `script-src`: `www.clarity.ms/tag/<id>` yükleyicidir; asıl `clarity.js` sürümünü
+ * (ör. `/0.8.77/clarity.js`) Clarity kendi seçer ve `scripts.clarity.ms`ten çeker.
+ * Yalnızca yükleyici kökeni izinliyken asıl betik CSP ile engellenir, kayıt hiç başlamaz.
+ */
+export const CLARITY_SCRIPT_ORIGINS = [
+  CLARITY_SCRIPT_ORIGIN,
+  "https://scripts.clarity.ms",
+] as const;
 export const CLARITY_CONNECT_ORIGINS = ["https://*.clarity.ms", "https://c.bing.com"] as const;
 
 /** Consent Mode v2: reklam sinyalleri kalıcı `denied`; yalnızca analitik değişir. */

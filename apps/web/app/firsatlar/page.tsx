@@ -5,10 +5,11 @@ import type { Metadata } from "next";
 import { HOME_COPY } from "../home-copy.ts";
 import { requireProductAccess } from "../lib/dal.ts";
 import actions from "../public-actions.module.css";
+import { SITE_BRAND } from "../site-config.ts";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = {
-  title: "Fırsatlar – Arilla",
+  title: `Fırsatlar – ${SITE_BRAND}`,
   description: "Fiyatı düşen ürünler, düşüş tutarı ve yüzdesiyle.",
   alternates: { canonical: "/firsatlar" },
 };

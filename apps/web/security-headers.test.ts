@@ -244,6 +244,8 @@ describe("katalog toplama CSP'si (karar 0117)", () => {
     const on = contentSecurityPolicy({ ...PROD, gtm: true, clarity: true });
     expect(on).toContain("script-src 'self' 'unsafe-inline' https://www.googletagmanager.com");
     expect(on).toContain("https://www.clarity.ms");
+    // Asıl clarity.js scripts.clarity.ms kökeninden yüklenir; yoksa kayıt CSP ile engellenir.
+    expect(on).toMatch(/script-src [^;]*https:\/\/scripts\.clarity\.ms/);
     expect(on).toContain("frame-src 'self' https://www.googletagmanager.com");
     const routes = securityHeaderRoutes({ ...PROD, gtm: true, clarity: true });
     const admin = routes.find((r) => r.source === "/yonetim");

@@ -58,6 +58,7 @@ import { PriceHistorySummary } from "./price-history-summary.tsx";
 import { ProductActionsClient } from "./product-actions-client.tsx";
 import { ProductAnalytics } from "./product-analytics-client.tsx";
 import { ProductGalleryClient } from "./product-gallery-client.tsx";
+import { productJsonLd } from "./product-json-ld.ts";
 import styles from "./product-page.module.css";
 import { SizeSelectorClient } from "./size-selector-client.tsx";
 import { VariantRestockClient } from "./variant-restock-client.tsx";
@@ -67,10 +68,6 @@ function unitPriceLabel(row: ComparisonRow): string | undefined {
   return row.unitPriceKurus !== null && row.unitLabel
     ? `${row.unitLabel}: ${formatTRY(row.unitPriceKurus)}`
     : undefined;
-}
-
-function variantOfferCountFor(rows: readonly { offerId: number }[]): number {
-  return new Set(rows.map((row) => row.offerId)).size;
 }
 
 /** `?boyut=` degeri: tek bir dize, yoksa null. */
@@ -113,12 +110,6 @@ const LOWEST_PERCENTILE_THRESHOLD = 5;
  * "stokta yok" YAZILMAZ; bilinmeyen bilgi uydurulmaz.
  */
 const STOCK_UNKNOWN_LABEL = "Stok durumu mağazada görülür";
-
-/** JSON-LD: stok bilinmiyorsa `availability` verilmez (yanlis "OutOfStock" yok). */
-function schemaAvailability(row: { inStock: boolean; stockUnknown?: boolean }) {
-  if (row.stockUnknown) return {};
-  return { availability: `https://schema.org/${row.inStock ? "InStock" : "OutOfStock"}` };
-}
 
 function formatSure(from: Date, now: Date): string {
   const minutes = Math.max(1, Math.floor((now.getTime() - from.getTime()) / 60_000));
@@ -373,51 +364,17 @@ export default async function ProductPage({
   // schema.org `url` mutlak olmalı - APP_URL yoksa alan tamamen atlanır,
   // göreli bir URL yazmaktan iyidir (Rich Results Test göreli url'i reddeder).
   const siteUrl = readAppUrl();
-  const productJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: product.title,
-    ...(product.brandName ? { brand: { "@type": "Brand", name: product.brandName } } : {}),
-    ...(gallery.images.length > 0 ? { image: gallery.images.map((image) => image.url) } : {}),
-    ...(siteUrl ? { url: `${siteUrl}/urun/${product.slug}` } : {}),
-    ...(variantMode && !variantMode.selectedKey && variantMode.rows.length > 0
-      ? {
-          // 0037: secim yokken teklifler FARKLI boyutlardir; tek "esdeger
-          // teklif" kumesi gibi degil, bir fiyat ARALIGI olarak bildirilir.
-          offers: {
-            "@type": "AggregateOffer",
-            priceCurrency: "TRY",
-            lowPrice: (Math.min(...variantMode.rows.map((r) => r.priceKurus)) / 100).toFixed(2),
-            highPrice: (Math.max(...variantMode.rows.map((r) => r.priceKurus)) / 100).toFixed(2),
-            offerCount: variantOfferCountFor(variantMode.rows),
-          },
-        }
-      : variantMode
-        ? {
-            // Secili varyant: yalnizca uyumlu satirlar (hepsi ayni boyut).
-            offers: variantMode.rows.map((row) => ({
-              "@type": "Offer",
-              ...(row.variantLabel ? { name: row.variantLabel } : {}),
-              price: (row.priceKurus / 100).toFixed(2),
-              priceCurrency: "TRY",
-              ...schemaAvailability(row),
-              ...(siteUrl ? { url: `${siteUrl}/git/${row.offerId}?surface=structured_data` } : {}),
-            })),
-          }
-        : merchantOffers.length > 0
-          ? {
-              offers: merchantOffers.map((offer) => ({
-                "@type": "Offer",
-                price: (offer.currentPrice / 100).toFixed(2),
-                priceCurrency: "TRY",
-                ...schemaAvailability(offer),
-                ...(siteUrl
-                  ? { url: `${siteUrl}/git/${offer.offerId}?surface=structured_data` }
-                  : {}),
-              })),
-            }
-          : {}),
-  };
+  const productStructuredData = productJsonLd({
+    slug: product.slug,
+    title: product.title,
+    brandName: product.brandName,
+    imageUrls: gallery.images.map((image) => image.url),
+    siteUrl,
+    variantMode: variantMode
+      ? { selectedKey: variantMode.selectedKey, rows: variantMode.rows }
+      : null,
+    merchantOffers,
+  });
 
   const showOffers = !singleOffer && merchantOffers.length > 0;
   // Gecmis grafigi gunluk en dusugu tum boyutlardan alir: varyant modunda
@@ -439,11 +396,13 @@ export default async function ProductPage({
 
   return (
     <div className={styles.page}>
-      <script
-        type="application/ld+json"
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: schema.org JSON-LD; baslik merchant feed'inden gelir, serializeJsonLd </script> kacisini engeller.
-        dangerouslySetInnerHTML={{ __html: serializeJsonLd(productJsonLd) }}
-      />
+      {productStructuredData ? (
+        <script
+          type="application/ld+json"
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: schema.org JSON-LD; baslik merchant feed'inden gelir, serializeJsonLd </script> kacisini engeller.
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(productStructuredData) }}
+        />
+      ) : null}
 
       <ProductAnalytics
         itemId={product.productId}
