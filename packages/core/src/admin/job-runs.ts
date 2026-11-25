@@ -114,6 +114,13 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
     kind: "pipeline",
     overdueAfterMs: null,
   },
+  // Karar 0220: kaynak ilanındaki doğrulanmış barkodu ürüne yazar (kesin kimlikle eşleşme girdisi).
+  catalog_identity: {
+    label: "Kaynak barkodu ürüne yazımı (GTIN)",
+    how: "python -m catalog_build identity --merchant hepsiburada",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
   catalog_gate: {
     label: "Katalog kalite kapısı",
     how: "python -m catalog_build gate",

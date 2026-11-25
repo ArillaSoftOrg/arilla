@@ -22,6 +22,7 @@ import math
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
+from catalog_build.gate import PUBLISH_STALE_DAYS
 from platforms import registry
 
 if TYPE_CHECKING:
@@ -47,22 +48,42 @@ def plan_for(merchant: str) -> SourcePlan:
         # Eski davranis: kayitsiz kaynakta kisit yok (hat kimlik kurali olmadan urun acmaz).
         return SourcePlan(merchant, False, None, True, True, True)
     rights = definition.constraints.rights
-    max_age = definition.constraints.update.max_price_age
     return SourcePlan(
         merchant=merchant,
         registered=True,
-        max_stale_days=max(1, math.ceil(max_age.total_seconds() / 86_400)),
+        max_stale_days=_days(definition),
         foreign_display=rights.foreign_currency_display,
         may_publish=rights.may_store_prices and rights.may_display_prices,
         run_parents=definition.source_parent_map,
     )
 
 
+def _days(definition: registry.SourceDefinition) -> int:
+    return max(1, math.ceil(definition.constraints.update.max_price_age.total_seconds() / 86_400))
+
+
+def stale_days_map(requested: int | None) -> dict[str, int]:
+    """Kayitli kaynak -> etkin tazelik gunu (karar 0220; `gate`/`publish` SQL'ine jsonb gider).
+
+    `requested` None: kaynagin kendi siniri (`max_price_age`). Verildiyse ikisinin kucugu:
+    acik bir deger kaynak sinirini asla GEVSETMEZ. Kayitsiz kaynak haritada yoktur (eski
+    davranis: `requested` ya da varsayilan 2 gun).
+    """
+    out: dict[str, int] = {}
+    for slug, definition in registry.all_definitions().items():
+        cap = _days(definition)
+        out[slug] = cap if requested is None else max(1, min(requested, cap))
+    return out
+
+
 def effective_options(opts: AutoOptions, plan: SourcePlan) -> tuple[AutoOptions, SourcePlan]:
     """Istenen secenekleri kaynak planiyla SIKILASTIRIR; asla gevsetmez."""
     notes: list[str] = []
     stale = opts.stale_days
-    if plan.max_stale_days is not None and stale > plan.max_stale_days:
+    if stale is None:
+        # Karar 0220: acik deger yoksa kaynagin kendi siniri (kayitsizsa eski varsayilan).
+        stale = plan.max_stale_days or PUBLISH_STALE_DAYS
+    elif plan.max_stale_days is not None and stale > plan.max_stale_days:
         stale = plan.max_stale_days
         notes.append(f"stale_days_capped_{stale}")
     allow_foreign = opts.allow_foreign

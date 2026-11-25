@@ -14,6 +14,7 @@
  * Her denetim kendi salt okunur, zaman aşımlı işleminde çalışır: biri
  * zaman aşımına uğrarsa diğerleri yine görünür.
  */
+
 import {
   type Database,
   ORPHAN_SQL,
@@ -22,6 +23,10 @@ import {
   toOrphanGroup,
 } from "@arilla/db";
 import { sql } from "drizzle-orm";
+import {
+  type CollectionFreshness,
+  readCollectionFreshness,
+} from "../catalog-collection/schedule.ts";
 import { LINK_RESOLUTION_QUEUE_KEY, linkQueueBackend } from "../discovery/link-queue.ts";
 import { IN_FLIGHT_TTL_MS } from "../discovery/link-resolution.ts";
 import { getLinkRedis } from "../redis/client.ts";
@@ -358,6 +363,8 @@ export interface OperationsOverview {
   merchants: Check<MerchantAttentionItem[]>;
   /** Onay bekleyen besleme karantinası (karar 0152/0175). */
   feedQuarantine: Check<FeedQuarantineItem[]>;
+  /** Hepsiburada toplama/teklif tazeligi (karar 0220). */
+  collectionFreshness: Check<CollectionFreshness>;
 }
 
 export async function getOperationsOverview(
@@ -377,6 +384,7 @@ export async function getOperationsOverview(
     window,
     merchants,
     feedQuarantine,
+    collectionFreshness,
   ] = await Promise.all([
     check(() => partitionHealth(db, now)),
     check(() => costByDay(db)),
@@ -388,6 +396,7 @@ export async function getOperationsOverview(
     check(() => costWindow(db)),
     check(() => listMerchantAttention(db, actor, now)),
     check(() => listFeedQuarantine(db)),
+    check(() => readCollectionFreshness(db)),
   ]);
   return {
     generatedAt: now,
@@ -401,6 +410,7 @@ export async function getOperationsOverview(
     costWindow: window,
     merchants,
     feedQuarantine,
+    collectionFreshness,
   };
 }
 

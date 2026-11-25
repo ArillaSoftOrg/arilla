@@ -38,7 +38,9 @@ FOREIGN_APPROVAL_ENV = "CATALOG_PUBLISH_FOREIGN_APPROVED"
 SELECT_READY = """
 SELECT p.id, o.id, o.external_id, o.url, o.title_raw, o.image_url, o.current_price, o.currency,
        o.is_active, o.product_id, m.slug, p.source_merchant_id,
-       (seen.at IS NULL OR seen.at < now() - (%(stale_days)s * interval '1 day')) AS stale
+       (seen.at IS NULL OR seen.at < now() - (COALESCE((%(stale_map)s::jsonb ->> m.slug)::int,
+                                                       %(stale_days)s) * interval '1 day'))
+         AS stale
   FROM product p
   JOIN offer o ON o.id = p.source_offer_id
   JOIN merchant m ON m.id = o.merchant_id
@@ -154,12 +156,17 @@ def publish_ready(
     merchant_id: int | None = None,
     batch_size: int = DEFAULT_BATCH,
     allow_foreign: bool = False,
-    stale_days: int = PUBLISH_STALE_DAYS,
+    stale_days: int | None = None,
     should_stop: Callable[[], bool] = lambda: False,
     policies: dict[str, SourcePolicy] | None = None,
     throttle: Callable[[], bool] | None = None,
 ) -> PublishCounts:
     """En fazla `limit` urun yayinlar. `allow_foreign` YETMEZ: ortam onayi da gerekir."""
+    from catalog_build.source_config import stale_days_map
+
+    # Karar 0220: kaynak basina tazelik (gate ile ayni kural).
+    stale_map = Jsonb(stale_days_map(stale_days))
+    fallback = PUBLISH_STALE_DAYS if stale_days is None else stale_days
     foreign_ok = allow_foreign and foreign_approved()
     policies = POLICIES if policies is None else policies
     totals = PublishCounts()
@@ -178,7 +185,8 @@ def publish_ready(
                     "after": after,
                     "limit": take,
                     "merchant_id": merchant_id,
-                    "stale_days": stale_days,
+                    "stale_days": fallback,
+                    "stale_map": stale_map,
                 },
             )
             rows = cur.fetchall()

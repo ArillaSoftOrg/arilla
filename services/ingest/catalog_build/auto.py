@@ -46,7 +46,6 @@ from catalog_build import build as build_mod
 from catalog_build import gate as gate_mod
 from catalog_build import publish as publish_mod
 from catalog_build import source_config
-from catalog_build.gate import PUBLISH_STALE_DAYS
 from catalog_build.policy import SourcePolicy
 from db import job_run, wal_pressure
 
@@ -148,7 +147,8 @@ class AutoOptions:
     #: Tum kosunun duvar saati butcesi. Zamanlayici `TimeoutStartSec`inin altinda kalmali.
     max_seconds: float = 8_400.0
     publish_limit: int = 300_000
-    stale_days: int = PUBLISH_STALE_DAYS
+    #: None = kaynagin kendi tazelik siniri (karar 0220); verilirse yalniz sikilastirir.
+    stale_days: int | None = None
     allow_foreign: bool = False
     require_category: bool = False
     #: Tam yeniden tarama araligi (gun): onceden atlanmis ama sonradan gecerli olan teklifler.

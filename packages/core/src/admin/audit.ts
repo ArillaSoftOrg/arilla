@@ -134,6 +134,8 @@ export type AdminAction =
   | "links.deactivate"
   /** Katalog toplama (karar 0117): kosu rezervasyonu ve kapanisi; urun icerigi YAZILMAZ. */
   | "catalog_collection.start"
+  // Karar 0220: yonetici tarayicisindaki zamanlayicinin actigi haftalik yenileme.
+  | "catalog_collection.schedule_start"
   | "catalog_collection.close"
   /** Karar 0140: kapanan tam taramanın kaldırılma sayımı (görülen / eksik / kaldırılan). */
   | "catalog_collection.presence"

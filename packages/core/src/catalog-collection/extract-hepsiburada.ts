@@ -6,6 +6,10 @@
  *
  * Listede OLMAYAN alan uydurulmaz: satici, GTIN, kategori, varyant `null` kalir.
  * Marka yalnizca ogede `brand` varsa alinir. Veri yapisi resmi sozlesme degildir.
+ *
+ * Karar 0220: ayni oge schema.org `gtin*` ya da `category` tasiyorsa (zaten okunan
+ * sayfada, ek istek YOK) alinir. Barkod burada yalnizca bicimce elenir; kimlik gecerliligi
+ * (kontrol basamagi, kisitli GS1 onekleri) birlestirmede `identity_policy` ile sinanir.
  */
 import { decimalToKurus, httpsUrlOn, isRecord, scriptTextById } from "./parse-helpers.ts";
 
@@ -18,6 +22,10 @@ export interface ExtractedItem {
   inStock: boolean | null;
   imageUrl: string | null;
   brand: string | null;
+  /** Ogede varsa ham barkod (8-14 rakam); yoksa null. */
+  gtin: string | null;
+  /** Ogede varsa kaynak kategori metni; yoksa null. */
+  categoryRaw: string | null;
 }
 
 export interface ExtractedPage {
@@ -50,6 +58,25 @@ function availabilityOf(raw: unknown): boolean | null {
 function brandOf(raw: unknown): string | null {
   const v = isRecord(raw) ? raw.name : raw;
   return typeof v === "string" && v.trim() ? v.trim().slice(0, 200) : null;
+}
+
+/** schema.org `gtin`/`gtin13`/`gtin14`/`gtin12`/`gtin8`: ilk 8-14 haneli rakam dizisi. */
+export function gtinOf(item: Record<string, unknown>): string | null {
+  for (const key of ["gtin", "gtin13", "gtin14", "gtin12", "gtin8"]) {
+    const raw = item[key];
+    const v = typeof raw === "number" && Number.isSafeInteger(raw) ? String(raw) : raw;
+    if (typeof v === "string" && /^[0-9]{8,14}$/.test(v.trim())) return v.trim();
+  }
+  return null;
+}
+
+/** `category` metni ya da `{ name }`; yol dizisi " > " ile birlestirilir. */
+function categoryOf(raw: unknown): string | null {
+  const parts = (Array.isArray(raw) ? raw : [raw])
+    .map((c) => (isRecord(c) ? c.name : c))
+    .filter((c): c is string => typeof c === "string" && c.trim() !== "")
+    .map((c) => c.trim());
+  return parts.length ? parts.join(" > ").slice(0, 500) : null;
 }
 
 const NONE: ExtractedPage = { items: [], rawCount: 0, structureFound: false };
@@ -98,6 +125,8 @@ export function extractHepsiburadaPage(html: string): ExtractedPage {
       inStock: availabilityOf(offer?.availability),
       imageUrl: imageUrl ?? null,
       brand: brandOf(it.brand),
+      gtin: gtinOf(it),
+      categoryRaw: categoryOf(it.category),
     });
   }
   return { items, rawCount: list.length, structureFound: true };

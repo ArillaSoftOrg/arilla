@@ -1,4 +1,9 @@
-import { getCatalogFunnel, getCollectionStatus } from "@arilla/core";
+import {
+  autoCollectFlagEnabled,
+  getCatalogFunnel,
+  getCollectionSchedule,
+  getCollectionStatus,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { requireCapability } from "../../../lib/dal.ts";
 import styles from "../../admin.module.css";
@@ -34,6 +39,16 @@ const BLOCKED_TEXT: Record<string, string> = {
   monthly_products: "Bu ayın ürün hakkı doldu; UTC ay başında yenilenir.",
 };
 
+/** Zamanlanmis yenileme engel nedenleri (karar 0220). */
+const SCHEDULE_TEXT: Record<string, string> = {
+  flag_off: "Kapalı (CATALOG_AUTO_COLLECT_ENABLED).",
+  no_template: "Kapanmış bir arama koşusu yok; ilk koşu elle başlatılmalı.",
+  interval: "Son koşudan bu yana 7 gün dolmadı.",
+  month: "Bu takvim ayında 4 koşu yapıldı.",
+  open_run: "Açık koşu var; elle sürdürülmeli.",
+  quota: "Kaynak kotası yeni koşuya izin vermiyor.",
+};
+
 function limitText(used: number, limit: number | null): string {
   return limit === null
     ? `${formatCount(used)} / sınırsız`
@@ -43,10 +58,14 @@ function limitText(used: number, limit: number | null): string {
 export default async function CatalogCollectionPage() {
   const { actor } = await requireCapability("catalog.write");
   const db = getDatabase();
+  const autoEnabled = autoCollectFlagEnabled();
   const [status, funnel] = await Promise.all([
     getCollectionStatus(db, actor, "hepsiburada"),
     getCatalogFunnel(db, actor, "hepsiburada"),
   ]);
+  const schedule = await getCollectionSchedule(db, actor, "hepsiburada", {
+    flagEnabled: autoEnabled,
+  });
   const q = status.quota;
   const open = status.openRun;
   const openIsDiscovery = open?.checkpoint?.mode === "discovery";
@@ -91,6 +110,14 @@ export default async function CatalogCollectionPage() {
             tone={q.canStart || q.canResume ? "neutral" : "warning"}
             note={q.blockedBy ? BLOCKED_TEXT[q.blockedBy] : undefined}
           />
+          <KpiCard
+            label="Zamanlanmış haftalık yenileme"
+            value={schedule.due ? "Zamanı geldi" : schedule.flagEnabled ? "Bekliyor" : "Kapalı"}
+            tone={schedule.blockedBy === "open_run" ? "warning" : "neutral"}
+            note={`İzne göre en erken: ${formatDateOrDash(schedule.nextAllowedAt)} · bu ay ${schedule.runsThisMonth}/4 koşu${
+              schedule.blockedBy ? ` · ${SCHEDULE_TEXT[schedule.blockedBy]}` : ""
+            }`}
+          />
         </KpiGroup>
       </Section>
 
@@ -102,6 +129,7 @@ export default async function CatalogCollectionPage() {
         <CollectorClient
           source="hepsiburada"
           canStart={q.canStart}
+          autoEnabled={autoEnabled}
           openRun={
             status.openRun && !openIsDiscovery
               ? {

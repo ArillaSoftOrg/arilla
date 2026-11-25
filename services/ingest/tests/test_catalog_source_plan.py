@@ -50,7 +50,8 @@ def test_aliexpress_plan_matches_current_production_invocation() -> None:
     assert plan.registered and plan.may_publish and plan.run_parents and plan.foreign_display
     opts = replace(OPTS, merchant="aliexpress", allow_foreign=True)
     effective, final = effective_options(opts, plan)
-    assert effective == opts
+    # Karar 0220: --stale-days verilmezse kaynak siniri; AliExpress icin eski 2 gun ayni.
+    assert effective == replace(opts, stale_days=2)
     assert final.notes == ()
 
 
@@ -66,6 +67,29 @@ def test_stale_days_is_only_ever_tightened() -> None:
     plan = plan_for("aliexpress")  # max_price_age = 2 gun
     assert effective_options(replace(OPTS, stale_days=7), plan)[0].stale_days == 2
     assert effective_options(replace(OPTS, stale_days=1), plan)[0].stale_days == 1
+
+
+def test_hepsiburada_freshness_follows_weekly_permission() -> None:
+    """Karar 0220: HB haftada 1 yenilenebilir; tazelik 8 gun, en kisa yenileme 7 gun."""
+    hb = registry.get("hepsiburada")
+    assert hb is not None
+    assert hb.constraints.update.min_refresh_interval.days == 7
+    plan = plan_for("hepsiburada")
+    assert plan.max_stale_days == 8
+    assert effective_options(replace(OPTS, merchant="hepsiburada"), plan)[0].stale_days == 8
+    # Acik deger kaynak sinirini gevsetmez, yalniz sikilastirir.
+    assert effective_options(replace(OPTS, stale_days=30), plan)[0].stale_days == 8
+    assert effective_options(replace(OPTS, stale_days=3), plan)[0].stale_days == 3
+
+
+def test_stale_days_map_is_per_source_and_only_tightens() -> None:
+    from catalog_build.source_config import stale_days_map
+
+    default = stale_days_map(None)
+    assert default["aliexpress"] == 2 and default["hepsiburada"] == 8
+    assert "test-cb-source" not in default  # kayitsiz: eski davranis
+    explicit = stale_days_map(5)
+    assert explicit["aliexpress"] == 2 and explicit["hepsiburada"] == 5
 
 
 def test_foreign_publication_is_only_ever_restricted() -> None:

@@ -6,6 +6,7 @@ python -m catalog_build audit   --merchant aliexpress [--batch 5000]
 python -m catalog_build build-discovery --merchant hepsiburada --limit N [--batch 5000]
                                 [--max-seconds S] [--sleep-ms MS] [--rescan] [--dry-run]
 python -m catalog_build status  --merchant aliexpress
+python -m catalog_build identity --merchant hepsiburada [--dry-run]   (karar 0220: barkod -> urun)
 python -m catalog_build gate    [--after-id N] [--batch 5000] [--max-batches N]
                                 [--stale-days 2] [--allow-foreign]
 python -m catalog_build publish --limit N --confirm [--merchant aliexpress] [--allow-foreign]
@@ -47,6 +48,7 @@ from catalog_build import auto as auto_mod
 from catalog_build import build as build_mod
 from catalog_build import discovery as discovery_mod
 from catalog_build import gate as gate_mod
+from catalog_build import identity as identity_mod
 from catalog_build import publish as publish_mod
 from db import job_run, wal_pressure
 from db.connection import connect, database_url
@@ -242,11 +244,17 @@ def main(argv: list[str] | None = None) -> int:
     p_status = sub.add_parser("status")
     p_status.add_argument("--merchant", required=True)
 
+    p_ident = sub.add_parser("identity", help="kaynak ilani barkodunu urune yazar (karar 0220)")
+    p_ident.add_argument("--merchant", required=True)
+    p_ident.add_argument("--batch", type=int, default=identity_mod.DEFAULT_BATCH)
+    p_ident.add_argument("--dry-run", action="store_true")
+
     p_gate = sub.add_parser("gate")
     p_gate.add_argument("--after-id", type=int, default=0)
     p_gate.add_argument("--batch", type=int, default=gate_mod.DEFAULT_BATCH)
     p_gate.add_argument("--max-batches", type=int, default=None)
-    p_gate.add_argument("--stale-days", type=int, default=gate_mod.DEFAULT_STALE_DAYS)
+    # Karar 0220: verilmezse kaynak basina `max_price_age` (Hepsiburada 8, AliExpress 2 gun).
+    p_gate.add_argument("--stale-days", type=int, default=None)
     p_gate.add_argument("--allow-foreign", action="store_true")
     _add_wal_args(p_gate)
 
@@ -255,7 +263,7 @@ def main(argv: list[str] | None = None) -> int:
     p_pub.add_argument("--merchant", default=None)
     p_pub.add_argument("--allow-foreign", action="store_true")
     p_pub.add_argument("--confirm", action="store_true")
-    p_pub.add_argument("--stale-days", type=int, default=gate_mod.PUBLISH_STALE_DAYS)
+    p_pub.add_argument("--stale-days", type=int, default=None)
     p_pub.add_argument("--batch", type=int, default=publish_mod.DEFAULT_BATCH)
     _add_wal_args(p_pub)
 
@@ -268,7 +276,7 @@ def main(argv: list[str] | None = None) -> int:
     p_auto.add_argument("--confirm", action="store_true")
     p_auto.add_argument("--allow-foreign", action="store_true")
     p_auto.add_argument("--require-category", action="store_true")
-    p_auto.add_argument("--stale-days", type=int, default=gate_mod.PUBLISH_STALE_DAYS)
+    p_auto.add_argument("--stale-days", type=int, default=None)
     p_auto.add_argument("--publish-limit", type=int, default=300_000)
     p_auto.add_argument("--max-seconds", type=float, default=8_400.0)
     p_auto.add_argument("--rescan-days", type=int, default=7)
@@ -387,6 +395,29 @@ def main(argv: list[str] | None = None) -> int:
             f"kesif_taslagina_baglanan={counts.attached} atlanan={counts.skipped}"
         )
         return code
+
+    if args.command == "identity":
+        with job_run.track("catalog_identity") as run, connect() as conn:
+            icounts = identity_mod.write_source_gtins(
+                conn,
+                merchant_slug=args.merchant,
+                batch_size=max(1, args.batch),
+                dry_run=args.dry_run,
+            )
+            run.detail.update(
+                merchant=args.merchant,
+                scanned=icounts.scanned,
+                written=icounts.written,
+                dry_run=args.dry_run,
+                **{f"skipped_{k}": v for k, v in sorted(icounts.skipped.items())},
+            )
+        print(
+            f"taranan={icounts.scanned} yazilan={icounts.written} zaten={icounts.already}"
+            f"{' (dry-run: hicbir sey yazilmadi)' if args.dry_run else ''}"
+        )
+        for reason in sorted(icounts.skipped):
+            print(f"  atlanan {reason:<26} {icounts.skipped[reason]}")
+        return 0
 
     if args.command == "gate":
         with job_run.track("catalog_gate") as run, connect() as conn:
