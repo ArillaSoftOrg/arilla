@@ -264,9 +264,13 @@ test("browser waits on failed status and navigates only after confirmed recovery
       url === "/ready" ? { ok: health } : { ok: !!result, json: async () => result },
     AbortSignal,
     Date,
-    setTimeout: () => 1,
+    setTimeout: () => {
+      timers++;
+      return 1;
+    },
     clearTimeout() {},
   });
+  let timers = 0;
   vm.runInContext(source, context);
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(redirects, []);
@@ -279,6 +283,12 @@ test("browser waits on failed status and navigates only after confirmed recovery
   health = true;
   await vm.runInContext("check()", context);
   assert.deepEqual(redirects, ["/ara"]);
+  // Yönlendirdikten sonra yeniden yoklama/yönlendirme yok: yavaş hedefin yüklemesi
+  // 15 sn'de bir kendi kendini iptal etmemeli.
+  const timersAfterRedirect = timers;
+  await vm.runInContext("check()", context);
+  assert.deepEqual(redirects, ["/ara"]);
+  assert.equal(timers, timersAfterRedirect);
 });
 test("core rejects unauthorized mutation before network and reports timeout as unknown", async (t) => {
   const before = {
