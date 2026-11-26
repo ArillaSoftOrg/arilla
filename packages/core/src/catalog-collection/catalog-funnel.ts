@@ -14,6 +14,7 @@
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
 import { type AdminActor, assertCapability } from "../admin/capabilities.ts";
+import { HEPSIBURADA_MAX_PRICE_AGE_DAYS } from "./schedule.ts";
 
 /** Bu kadar satirdan sonra sayim durur ("en az N"). */
 export const FUNNEL_COUNT_CAP = 1_000_000;
@@ -32,7 +33,20 @@ export interface CatalogFunnel {
   /** Sitemap toplayicisi: kesif defteri. Fiyat durumu bilinenler indeksle tam sayilir. */
   discovery: { total: CappedCount; listingPrice: number; pageVerified: number; stale: number };
   /** Birlestirilmis kayit = Hepsiburada teklifi (`offer`, magaza + kod tekil). */
-  offers: { total: number; active: number; linkedToProduct: number; stockUnknown: number };
+  offers: {
+    total: number;
+    active: number;
+    linkedToProduct: number;
+    stockUnknown: number;
+    /** Aktif tekliflerde en yeni / en eski kaynakta gorulme (karar 0220 tazelik). */
+    newestSeenAt: Date | null;
+    oldestSeenAt: Date | null;
+    /** Tazelik siniri (`maxPriceAgeDays`) icinde gorulmemis aktif teklif. */
+    staleActive: number;
+    /** Gecerli barkodu (`attributes_raw.gtin`, 14 hane) olan aktif teklif. */
+    withGtin: number;
+    maxPriceAgeDays: number;
+  };
   /** Product'a aktarilan Hepsiburada urunleri (kaynak ilani), yayin durumuna gore. */
   products: {
     total: number;
@@ -41,6 +55,8 @@ export interface CatalogFunnel {
     held: number;
     published: number;
     heldReasons: Record<string, number>;
+    /** Barkodu (`product.gtin`) yazilmis urun: baska magazayla kesin kimlikle eslesebilir. */
+    withGtin: number;
   };
   /** Kaynak teklifinde gercek fiyat olan urun (liste fiyati; sayfayla ayrica dogrulanmadi). */
   pricedProducts: number;
@@ -87,8 +103,26 @@ function emptyFunnel(): CatalogFunnel {
     merchantFound: false,
     intake: { total: zero, merged: zero, pending: 0 },
     discovery: { total: zero, listingPrice: 0, pageVerified: 0, stale: 0 },
-    offers: { total: 0, active: 0, linkedToProduct: 0, stockUnknown: 0 },
-    products: { total: 0, draft: 0, ready: 0, held: 0, published: 0, heldReasons: {} },
+    offers: {
+      total: 0,
+      active: 0,
+      linkedToProduct: 0,
+      stockUnknown: 0,
+      newestSeenAt: null,
+      oldestSeenAt: null,
+      staleActive: 0,
+      withGtin: 0,
+      maxPriceAgeDays: HEPSIBURADA_MAX_PRICE_AGE_DAYS,
+    },
+    products: {
+      total: 0,
+      draft: 0,
+      ready: 0,
+      held: 0,
+      published: 0,
+      heldReasons: {},
+      withGtin: 0,
+    },
     pricedProducts: 0,
     awaitingPriceProducts: 0,
     problems: { priceJumpHeld: 0, offerBuildSkipped: {}, discoveryBuildSkipped: {} },
@@ -176,6 +210,17 @@ export async function getCatalogFunnel(
               AND product_id IS NOT NULL) AS offers_linked,
           (SELECT count(*) FROM offer WHERE merchant_id = ${merchantId} AND is_active
               AND NOT in_stock AND attributes_raw->>'stock_state' = 'unknown') AS stock_unknown,
+          (SELECT max(last_seen_at) FROM offer WHERE merchant_id = ${merchantId} AND is_active)
+            AS newest_seen,
+          (SELECT min(last_seen_at) FROM offer WHERE merchant_id = ${merchantId} AND is_active)
+            AS oldest_seen,
+          (SELECT count(*) FROM offer WHERE merchant_id = ${merchantId} AND is_active
+              AND last_seen_at < now() - make_interval(days => ${HEPSIBURADA_MAX_PRICE_AGE_DAYS}))
+            AS stale_active,
+          (SELECT count(*) FROM offer WHERE merchant_id = ${merchantId} AND is_active
+              AND attributes_raw ? 'gtin') AS offers_gtin,
+          (SELECT count(*) FROM product WHERE source_merchant_id = ${merchantId}
+              AND gtin IS NOT NULL) AS products_gtin,
           (SELECT jsonb_object_agg(k, n) FROM (
               SELECT publication_state || ':' || COALESCE(hold_reason, '') AS k, count(*) AS n
                 FROM product WHERE source_merchant_id = ${merchantId} GROUP BY 1) p)
@@ -198,7 +243,13 @@ export async function getCatalogFunnel(
       active: num(catalog.offers_active),
       linkedToProduct: num(catalog.offers_linked),
       stockUnknown: num(catalog.stock_unknown),
+      newestSeenAt: catalog.newest_seen ? new Date(String(catalog.newest_seen)) : null,
+      oldestSeenAt: catalog.oldest_seen ? new Date(String(catalog.oldest_seen)) : null,
+      staleActive: num(catalog.stale_active),
+      withGtin: num(catalog.offers_gtin),
+      maxPriceAgeDays: HEPSIBURADA_MAX_PRICE_AGE_DAYS,
     };
+    funnel.products.withGtin = num(catalog.products_gtin);
     const products = funnel.products;
     for (const [key, n] of Object.entries(counts(catalog.product_states))) {
       const [state, reason] = key.split(":") as [string, string];

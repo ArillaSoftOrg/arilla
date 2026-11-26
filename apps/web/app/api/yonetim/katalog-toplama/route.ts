@@ -2,11 +2,13 @@ import {
   type AdminActor,
   adminHostPolicy,
   approveRunDownload,
+  autoCollectFlagEnabled,
   type BatchInput,
   CollectionError,
   closeCollectionRun,
   discoveryProgress,
   evaluateAdminSession,
+  getCollectionSchedule,
   getCollectionStatus,
   hasCapability,
   isAdminRequestHost,
@@ -15,6 +17,7 @@ import {
   planDiscoveryUnits,
   reserveRequests,
   startCollectionRun,
+  startScheduledCollectionRun,
   submitCollectionBatch,
   submitDiscoveryBatch,
   verifySessionToken,
@@ -84,6 +87,7 @@ const STATUS_BY_CODE: Record<string, number> = {
   request_not_reserved: 409,
   collection_disabled: 403,
   collection_run_already_open: 409,
+  schedule_not_due: 409,
   collection_run_not_open: 409,
   collection_run_expired: 410,
   request_budget_exceeded: 429,
@@ -126,6 +130,21 @@ export async function POST(request: Request): Promise<Response> {
         const options = (body.options ?? {}) as { queries?: number; maxPages?: number };
         return json(await startCollectionRun(db, actor, { source: String(body.source), options }));
       }
+      case "schedule_status":
+        // Karar 0220: tarayicidaki zamanlayici yalniz sorar; karar sunucuda.
+        return json(
+          await getCollectionSchedule(db, actor, String(body.source), {
+            flagEnabled: autoCollectFlagEnabled(),
+          }),
+        );
+      case "schedule_start":
+        // Taze giris ISTEMEZ (zamanlayici gun sonra tetikler) ama istemci parametre secemez:
+        // sorgu listesi/sayfa tavani son kapanmis kosudan, izin kurallari sunucuda (karar 0220).
+        return json(
+          await startScheduledCollectionRun(db, actor, String(body.source), {
+            flagEnabled: autoCollectFlagEnabled(),
+          }),
+        );
       case "batch":
         return json(
           await submitCollectionBatch(db, actor, {

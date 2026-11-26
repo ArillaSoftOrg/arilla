@@ -14,6 +14,7 @@
  * Kalıcı alarm durumu, bildirim ya da genel log YOK: liste her bakışta mevcut
  * durumdan yeniden türetilir.
  */
+import { collectionFreshnessFindings } from "../catalog-collection/schedule.ts";
 import { MATCH_QUEUE_ALERT_THRESHOLD } from "./dashboard.ts";
 import { feedQuarantineFindings } from "./feed-quarantine.ts";
 import { type JobRunSummary, jobLabel, KNOWN_JOBS } from "./job-runs.ts";
@@ -789,12 +790,24 @@ export function operationsFindings(ops: OperationsOverview): AdminFinding[] {
           now,
         ),
       ];
+  const collection: AdminFinding[] = ops.collectionFreshness.ok
+    ? collectionFreshnessFindings(ops.collectionFreshness.value, now)
+    : [
+        unknown(
+          "collection.hepsiburada.freshness",
+          "Hepsiburada toplama tazeliği",
+          ops.collectionFreshness.error,
+          "/yonetim/katalog/toplama",
+          now,
+        ),
+      ];
   return sortFindings([
     ...partitionFindings(ops.partitions, now),
     ...jobRunFindings(ops.jobRuns, now),
     ...pipelineFindings(evaluatePipeline(ops.pipeline, now), now),
     ...merchants,
     ...quarantine,
+    ...collection,
     ...(ops.jobs.ok ? [matchingBacklogFinding(ops.jobs.value.pendingMatches, now)] : []),
     ...(discovery ? [discovery] : []),
     linkQueueFinding(ops.linkQueue, now),

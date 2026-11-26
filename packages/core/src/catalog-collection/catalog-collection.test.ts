@@ -34,7 +34,29 @@ describe("extractHepsiburadaPage", () => {
         inStock: true,
         imageUrl: "https://productimages.hepsiburada.net/s/1/500/a.jpg",
         brand: null,
+        gtin: null,
+        categoryRaw: null,
       },
+    ]);
+  });
+
+  it("ogede varsa barkod ve kategoriyi alir; bicimsiz barkodu almaz (karar 0220)", () => {
+    const r = extractHepsiburadaPage(
+      page([
+        item({ gtin13: "8690000000001", category: "Elektronik > Telefon" }),
+        item({
+          url: "https://www.hepsiburada.com/b-p-HBCV00002",
+          gtin: "ABC123",
+          gtin14: 18690000000008,
+          category: [{ name: "Ev" }, "Mutfak"],
+        }),
+        item({ url: "https://www.hepsiburada.com/c-p-HBCV00003", gtin13: "12345" }),
+      ]),
+    );
+    expect(r.items.map((i) => [i.gtin, i.categoryRaw])).toEqual([
+      ["8690000000001", "Elektronik > Telefon"],
+      ["18690000000008", "Ev > Mutfak"],
+      [null, null],
     ]);
   });
 

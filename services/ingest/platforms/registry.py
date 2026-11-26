@@ -59,6 +59,10 @@ class IdentityRule:
     discovery_source: str | None = None
     #: Adresten kimlik TURU (or. Hepsiburada `p`/`pm`).
     url_kind: Callable[[str], str | None] | None = None
+    #: Karar 0220: ilanin barkodu (GTIN) hangi adres turlerinde TEK bir ticari varyanti
+    #: tanimlar. Yalniz bu turlerdeki urune `product.gtin` yazilir (`catalog_build identity`).
+    #: Bos = kaynak ilani varyant duzeyinde degil; barkod urune yazilmaz (0111: GTIN varyanttir).
+    gtin_url_kinds: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -241,6 +245,8 @@ HEPSIBURADA = register(
             url_pattern=HEPSIBURADA_URL,
             discovery_source="hepsiburada",
             url_kind=hepsiburada_code_kind,
+            # `-p-` tek varyant, `-pm-` model/grup (0130): barkod yalniz `-p-` urununu tanimlar.
+            gtin_url_kinds=frozenset({"p"}),
         ),
         constraints=SourceConstraints(
             rights=UsageRights(
@@ -250,9 +256,11 @@ HEPSIBURADA = register(
                 may_hotlink_images=True,
                 may_track_clicks=True,
             ),
+            # Karar 0220: bildirilen izin haftada 1 yenileme (0117). Fiyat tazeligi haftalik
+            # yenileme + 1 gun pay; 2 gun her HB urununu kapida bayat yapiyordu.
             update=UpdateLimits(
-                min_refresh_interval=timedelta(hours=24),
-                max_price_age=timedelta(days=2),
+                min_refresh_interval=timedelta(days=7),
+                max_price_age=timedelta(days=8),
                 requests_per_minute=20,
                 daily_request_budget=20_000,
                 max_concurrency=1,

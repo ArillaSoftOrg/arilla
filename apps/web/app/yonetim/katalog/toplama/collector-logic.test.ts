@@ -11,6 +11,8 @@ const item = (id: string) => ({
   inStock: true,
   imageUrl: null,
   brand: null,
+  gtin: null,
+  categoryRaw: null,
 });
 
 function fakeEnv(

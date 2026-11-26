@@ -8,7 +8,7 @@ const HOLD_TEXT: Record<string, string> = {
   source_offer_missing: "Fiyatlı teklif yok (keşif kaydı, fiyat bekliyor)",
   no_price: "Teklifte fiyat yok",
   source_offer_inactive: "Kaynak teklif pasif",
-  stale_source_offer: "Kaynak teklif 7 gündür görülmedi",
+  stale_source_offer: "Kaynak teklif tazelik sınırı içinde görülmedi",
   offer_linked_elsewhere: "Teklif başka ürüne bağlı",
   offer_not_linkable: "Teklif bağlanamadı",
   no_image: "Görsel yok",
@@ -108,6 +108,17 @@ export function CatalogFunnelSection({ funnel }: { funnel: CatalogFunnel }) {
           label="Birleştirilmiş kayıt (teklif)"
           value={formatCount(f.offers.total)}
           note={`Aktif ${formatCount(f.offers.active)} · ürüne bağlı ${formatCount(f.offers.linkedToProduct)} · stok bilinmiyor ${formatCount(f.offers.stockUnknown)}`}
+        />
+        <KpiCard
+          label={`Tazelik (sınır ${f.offers.maxPriceAgeDays} gün)`}
+          value={`${formatCount(f.offers.staleActive)} bayat`}
+          tone={f.offers.staleActive > 0 ? "warning" : "neutral"}
+          note={`En yeni görülme ${formatDateOrDash(f.offers.newestSeenAt)} · en eski ${formatDateOrDash(f.offers.oldestSeenAt)}. Sınırı aşan teklif kapıda bayat sayılır; yenileme haftalık izinle yapılır.`}
+        />
+        <KpiCard
+          label="Barkodlu kayıt"
+          value={formatCount(f.offers.withGtin)}
+          note={`Barkodu yazılan ürün ${formatCount(f.products.withGtin)}: başka mağazayla yalnızca barkodla (kesin kimlik) eşleşebilir.`}
         />
       </KpiGroup>
       <KpiGroup label="Ürün aşamaları">

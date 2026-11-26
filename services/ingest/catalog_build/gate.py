@@ -26,6 +26,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 import psycopg
+from psycopg.types.json import Jsonb
 
 DEFAULT_BATCH = 5_000
 #: Kapinin bakabilecegi durumlar. `draft`: hic degerlendirilmemis; `held`/`ready`: yeniden bakis.
@@ -36,6 +37,10 @@ ALL_STATES = ("draft", "held", "ready")
 #: sabiti kullanir.
 PUBLISH_STALE_DAYS = 2
 DEFAULT_STALE_DAYS = PUBLISH_STALE_DAYS
+#: Karar 0220: kayit defterindeki kaynak (`platforms.registry`) kendi `max_price_age`
+#: siniriyla degerlendirilir (Hepsiburada 8 gun: haftalik yenileme izni). `stale_days`
+#: verilmezse kaynak siniri, verilirse ikisinin KUCUGU uygulanir (yalniz sikilastirir);
+#: kayitsiz kaynak eski davranistadir (`stale_days` ya da 2).
 
 #: Parti: `id > after` anahtarli; ayni parti tek ifadede guncellenir. `seen` ilkesi
 #: `OFFER_SEEN_AT` ile aynidir: GREATEST(offer.last_seen_at, max(uyelik.last_seen_at)).
@@ -59,12 +64,15 @@ WITH batch AS (
              WHEN b.primary_image_url IS NULL OR btrim(b.primary_image_url) = '' THEN 'no_image'
              WHEN o.product_id IS NOT NULL AND o.product_id <> b.id THEN 'offer_linked_elsewhere'
              WHEN seen.at IS NULL
-               OR seen.at < now() - (%(stale_days)s * interval '1 day') THEN 'stale_source_offer'
+               OR seen.at < now() - (COALESCE((%(stale_map)s::jsonb ->> sm.slug)::int,
+                                             %(stale_days)s) * interval '1 day')
+               THEN 'stale_source_offer'
              WHEN %(require_category)s AND b.category_id IS NULL THEN 'category_missing'
              WHEN o.currency <> 'TRY' AND NOT %(allow_foreign)s THEN 'foreign_blocked'
            END AS reason
       FROM batch b
       LEFT JOIN offer o ON o.id = b.source_offer_id
+      LEFT JOIN merchant sm ON sm.id = o.merchant_id
       LEFT JOIN LATERAL (
           SELECT GREATEST(o.last_seen_at, max(fo.last_seen_at)) AS at
             FROM feed_source_offer fo WHERE fo.offer_id = o.id
@@ -116,7 +124,7 @@ def run_gate(
     after_id: int = 0,
     batch_size: int = DEFAULT_BATCH,
     max_batches: int | None = None,
-    stale_days: int = DEFAULT_STALE_DAYS,
+    stale_days: int | None = None,
     allow_foreign: bool = False,
     states: tuple[str, ...] = ALL_STATES,
     require_category: bool = False,
@@ -125,6 +133,10 @@ def run_gate(
     on_batch: Callable[[GateCounts], None] | None = None,
     throttle: Callable[[], bool] | None = None,
 ) -> GateCounts:
+    from catalog_build.source_config import stale_days_map
+
+    stale_map = Jsonb(stale_days_map(stale_days))
+    fallback = DEFAULT_STALE_DAYS if stale_days is None else stale_days
     totals = GateCounts(last_product_id=after_id)
     after = after_id
     while True:
@@ -139,7 +151,8 @@ def run_gate(
                 {
                     "after": after,
                     "limit": max(1, batch_size),
-                    "stale_days": stale_days,
+                    "stale_days": fallback,
+                    "stale_map": stale_map,
                     "allow_foreign": allow_foreign,
                     "states": list(states),
                     "require_category": require_category,

@@ -2,7 +2,7 @@
 
 import { extractHepsiburadaPage } from "@arilla/core/catalog-collection-extract";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { type CollectorEnv, runCollection } from "./collector-logic.ts";
 import { collectionPageLoadedAsDocument, RELOAD_REQUIRED_TEXT } from "./document-load.ts";
 
@@ -16,6 +16,9 @@ interface OpenRun {
 
 const API = "/api/yonetim/katalog-toplama";
 const FETCH_TIMEOUT_MS = 25_000;
+/** Zamanlayici sunucuya bu aralikla sorar (karar 0220); karar sunucuda verilir. */
+const SCHEDULE_POLL_MS = 10 * 60_000;
+const SCHEDULE_FIRST_POLL_MS = 60_000;
 
 /**
  * Yöneticinin tarayıcısında çalışan toplayıcı (karar 0117, sözlü izin
@@ -27,10 +30,13 @@ export function CollectorClient({
   source,
   canStart,
   openRun,
+  autoEnabled = false,
 }: {
   source: string;
   canStart: boolean;
   openRun: OpenRun | null;
+  /** Zamanlanmis haftalik yenileme bayragi (`CATALOG_AUTO_COLLECT_ENABLED`, karar 0220). */
+  autoEnabled?: boolean;
 }) {
   const [queries, setQueries] = useState(
     Array.isArray(openRun?.checkpoint?.queries)
@@ -42,9 +48,19 @@ export function CollectorClient({
   const [log, setLog] = useState<string[]>([]);
   const [running, setRunning] = useState(false);
   const stop = useRef(false);
+  const busy = useRef(false);
   const router = useRouter();
 
   const append = (line: string) => setLog((prev) => [...prev.slice(-199), line]);
+
+  async function api(body: Record<string, unknown>) {
+    const res = await fetch(API, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return { ok: res.ok, status: res.status, data: await res.json().catch(() => ({})) };
+  }
 
   async function run(resume: boolean) {
     const list = [
@@ -65,6 +81,11 @@ export function CollectorClient({
       window.location.reload();
       return;
     }
+    await execute(list, maxPages, resume ? openRun : null);
+  }
+
+  async function execute(list: string[], pages: number, resumeRun: OpenRun | null) {
+    busy.current = true;
     stop.current = false;
     setRunning(true);
     const env: CollectorEnv = {
@@ -83,32 +104,64 @@ export function CollectorClient({
         });
         return { status: res.status, text: res.status === 200 ? await res.text() : "" };
       },
-      async api(body) {
-        const res = await fetch(API, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        return { ok: res.ok, status: res.status, data: await res.json().catch(() => ({})) };
-      },
+      api,
     };
     try {
-      await runCollection(env, {
-        queries: list,
-        maxPages,
-        resumeRun: resume ? openRun : null,
-      });
+      await runCollection(env, { queries: list, maxPages: pages, resumeRun });
     } catch (error) {
       append(`Durdu: ${error instanceof Error ? error.message : "bilinmeyen hata"}`);
     } finally {
+      busy.current = false;
       setRunning(false);
       // Kota ve acik kosu durumu sunucudan yeniden okunur (acik kalan kosu "surdur" ile devam eder).
       router.refresh();
     }
   }
 
+  // Zamanlanmis haftalik yenileme (karar 0220): yalniz bu sekme acik, gorunur ve belge bu
+  // yolda yuklenmisken sunucuya sorar. Acik kosu otomatik SURDURULMEZ (0117: otomatik yeniden
+  // deneme yok); sunucu izin kurallarini (7 gun, ayda 4) kendisi uygular.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: zamanlayici yalniz bayrakla kurulur
+  useEffect(() => {
+    if (!autoEnabled) return;
+    let cancelled = false;
+    async function tick() {
+      if (cancelled || busy.current || document.visibilityState !== "visible") return;
+      if (!collectionPageLoadedAsDocument()) return;
+      const state = await api({ op: "schedule_status", source }).catch(() => null);
+      if (cancelled || !state?.ok || !state.data?.due || busy.current) return;
+      append("Zamanlanmış haftalık yenileme zamanı geldi; koşu açılıyor.");
+      const started = await api({ op: "schedule_start", source }).catch(() => null);
+      if (!started?.ok) {
+        append(`Zamanlanmış koşu açılamadı: ${started?.data?.error ?? "bağlantı hatası"}`);
+        return;
+      }
+      const { run: r, queries: list, maxPages: pages } = started.data;
+      await execute(list, pages, {
+        id: r.id,
+        requestsMade: 0,
+        maxRequests: r.maxRequests,
+        expiresAt: String(r.expiresAt),
+        checkpoint: null,
+      });
+    }
+    const first = setTimeout(tick, SCHEDULE_FIRST_POLL_MS);
+    const every = setInterval(tick, SCHEDULE_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(first);
+      clearInterval(every);
+    };
+  }, [autoEnabled, source]);
+
   return (
     <div>
+      {autoEnabled ? (
+        <p>
+          Zamanlanmış yenileme açık: bu sekme açık ve görünürken, izin verilen zaman geldiğinde son
+          koşunun sorgularıyla yeni koşu kendiliğinden başlar (haftada en fazla 1, ayda en fazla 4).
+        </p>
+      ) : null}
       <label>
         Sorgular (satır başına bir terim)
         <textarea

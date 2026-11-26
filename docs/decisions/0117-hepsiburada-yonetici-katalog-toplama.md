@@ -135,6 +135,13 @@ Doğrulanmamış: kullanım koşulları metni, görsellerin yeniden kullanımı,
 - **Ayrı Hepsiburada tabloları/veritabanı:** mevcut `offer` modeli ve AliExpress
   beslemesiyle aynı hat yeterli.
 
+## Otomasyon (ek, karar 0220)
+
+Zamanlanmış haftalık yenileme yalnız bu sayfa yöneticinin tarayıcısında açıkken çalışır; sunucu
+kodda en az 7 gün aralık ve takvim ayında en fazla 4 koşu uygular, istemci parametre seçemez,
+bayrak (`CATALOG_AUTO_COLLECT_ENABLED`) varsayılan kapalıdır. Sunucudan istek, otomatik
+sürdürme ya da yeniden deneme yoktur. Ayrıntı: 0220.
+
 ## Açık işler
 
 Gerçek HTML örneği yok: arşivde kayıtlı Hepsiburada sayfası bulunmuyor; çıkarıcı eski

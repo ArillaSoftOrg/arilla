@@ -219,7 +219,16 @@ describe("katalog hunisi - entegrasyon (gercek Postgres)", () => {
       pageVerified: 0,
       stale: 0,
     });
-    expect(f.offers).toEqual({ total: 2, active: 2, linkedToProduct: 1, stockUnknown: 1 });
+    expect(f.offers).toMatchObject({
+      total: 2,
+      active: 2,
+      linkedToProduct: 1,
+      stockUnknown: 1,
+      staleActive: 0,
+      withGtin: 0,
+      maxPriceAgeDays: 8,
+    });
+    expect(f.offers.newestSeenAt).toBeInstanceOf(Date);
     expect(f.products).toEqual({
       total: 5,
       draft: 1,
@@ -227,6 +236,7 @@ describe("katalog hunisi - entegrasyon (gercek Postgres)", () => {
       held: 2,
       published: 1,
       heldReasons: { source_offer_missing: 1, no_image: 1 },
+      withGtin: 0,
     });
     expect(f.pricedProducts).toBe(2);
     expect(f.awaitingPriceProducts).toBe(1);
