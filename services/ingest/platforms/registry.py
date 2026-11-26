@@ -147,7 +147,9 @@ def catalog_definitions() -> dict[str, SourceDefinition]:
 
 
 def listing_only_slugs() -> frozenset[str]:
-    return frozenset(s for s, d in catalog_definitions().items() if d.listing_only)
+    """Cozumleyicinin urun ACMADIGI magazalar. Durumdan BAGIMSIZ (fail-closed): dogrulanmamis
+    (`sample`) bir `listing_only` kaynak da puanli cozumleyiciye girmez (karar 0221)."""
+    return frozenset(s for s, d in _REGISTRY.items() if d.listing_only)
 
 
 def onboarding_problems(definition: SourceDefinition) -> list[str]:
@@ -261,22 +263,38 @@ HEPSIBURADA = register(
     )
 )
 
-# ORNEK: gercek erisim yok (karar 0118: yonetici toplamasi). Kimlik kurali DOGRULANMADI,
-# bu yuzden `status="sample"`: adapter uyumluluk testlerinde kullanilir, kapi/yayin
-# hattina girmez. Pazar yeridir: ayni urunu birden cok satici satar.
+#: Trendyol kanonik urun adresi: `/<marka>/<slug>-p-<contentId>` (karar 0118 §5). Toplama
+#: tarafinin (`packages/core` `trendyolCanonical`) kabul ettigi bicimle AYNI; sorgu/parca yok.
+TRENDYOL_URL = re.compile(r"^https://www\.trendyol\.com/[^/?#\s]+/[^/?#\s]+-p-([0-9]{1,20})$")
+
+# Yonetici tarayicisi toplamasi (karar 0118, 0221). Kimlik kurali kayitli GERCEK orneklerle
+# dogrulandi (`packages/core/src/catalog-collection/fixtures`: urun sayfasi `product.id` ==
+# adresteki `-p-<contentId>`; test `test_trendyol_identity.py`).
+# Teklif SATICI BASINA DEGIL URUN BASINADIR (0118 §5): `external_id` = contentId, kazanan satici
+# degisince urun cogalmaz, `seller_id` guncellenir. Bu yuzden anahtar semasi `listing` ve
+# (Hepsiburada gibi) `is_marketplace=False`: kayit defterindeki "pazar yeri" bayragi "ayni ilan
+# icin birden cok satici teklifi toplanir" demektir; Trendyol'da yalniz kazanan satici okunur.
+# `listing_only`: urun YALNIZCA taslak -> kapi -> yayin hattindan acilir; cozumleyici bu
+# magazanin tekliflerinden urun acmaz (karar 0130). Toplama iki yerden KAPALIDIR
+# (`collection_source.enabled=FALSE`, `TRENDYOL_COLLECTION_ENABLED`); bu kayit onu acmaz.
 TRENDYOL = register(
     SourceDefinition(
         slug="trendyol",
-        kind="api",
-        status="sample",
+        kind="json",
+        status="verified",
+        listing_only=True,
         currency="TRY",
         category_system="trendyol",
-        is_marketplace=True,
-        offer_key_scheme="listing_seller",
+        is_marketplace=False,
+        offer_key_scheme="listing",
         merchant=MerchantInfo(
             name="Trendyol",
             domain="trendyol.com",
             source_type="user_discovered",
+        ),
+        identity=IdentityRule(
+            id_pattern=re.compile(r"^[0-9]{1,20}$"),
+            url_pattern=TRENDYOL_URL,
         ),
         constraints=SourceConstraints(
             rights=UsageRights(
@@ -284,15 +302,18 @@ TRENDYOL = register(
                 may_store_prices=True,
                 may_display_prices=True,
                 may_hotlink_images=True,
+                may_track_clicks=True,
             ),
             update=UpdateLimits(
-                min_refresh_interval=timedelta(hours=24),
-                requests_per_minute=20,
+                # Kota sistem seviyesindedir (0070/0075 tetikleyicisi): en az 7 gun, ayda 4.
+                min_refresh_interval=timedelta(days=7),
+                max_price_age=timedelta(days=2),
+                requests_per_minute=3,
                 max_concurrency=1,
                 batch_size=500,
             ),
         ),
-        notes="Ornek tanim; gercek API/kimlik kurali yok (karar 0118).",
+        notes="Yonetici tarayicisi toplamasi; resmi API/CORS yok, ek ag istegi yok (karar 0118).",
     )
 )
 
@@ -306,6 +327,7 @@ __all__ = [
     "HEPSIBURADA",
     "TRENDYOL",
     "HEPSIBURADA_URL",
+    "TRENDYOL_URL",
     "IdentityRule",
     "MerchantInfo",
     "SourceDefinition",

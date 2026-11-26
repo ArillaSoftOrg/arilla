@@ -7,6 +7,11 @@ export interface AdminNavItem {
   capability: Capability;
   /** Operatör için tek cümle: bu sayfa neyi cevaplar (bağlantı ipucu, konum yolu notu). */
   description: string;
+  /**
+   * Ortam bayrağına bağlı toplama kaynağı (`isSourceFlagEnabled`). Bayrak kapalıyken sayfa 404
+   * döner; menü de bağlantıyı göstermez (karar 0118, 0221).
+   */
+  collectionSource?: string;
 }
 
 export interface AdminNavGroup {
@@ -70,6 +75,13 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         label: "Katalog toplama",
         capability: "catalog.write",
         description: "Hepsiburada ürünlerini yönetici tarayıcısından topla; kota ve kapsam.",
+      },
+      {
+        href: "/yonetim/katalog/toplama/trendyol",
+        label: "Trendyol toplama",
+        capability: "catalog.write",
+        description: "Trendyol sayfalarını eklentiyle topla; kota, son koşular ve sonuçları.",
+        collectionSource: "trendyol",
       },
       {
         href: "/yonetim/katalog/kalite",

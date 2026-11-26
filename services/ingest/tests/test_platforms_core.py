@@ -142,8 +142,8 @@ def test_price_history_cutoff_unbounded_by_default() -> None:
 
 
 def test_catalog_policies_are_derived_from_registry() -> None:
-    assert set(POLICIES) == {"aliexpress", "hepsiburada"}
-    assert frozenset({"aliexpress", "hepsiburada"}) == SOURCE_LISTING_MERCHANTS
+    assert set(POLICIES) == {"aliexpress", "hepsiburada", "trendyol"}
+    assert frozenset({"aliexpress", "hepsiburada", "trendyol"}) == SOURCE_LISTING_MERCHANTS
     ali = POLICIES["aliexpress"]
     assert ali.id_pattern.match("1005001234567890")
     assert ali.discovery_source is None
@@ -151,9 +151,22 @@ def test_catalog_policies_are_derived_from_registry() -> None:
 
 
 def test_sample_platform_never_enters_catalog_pipeline() -> None:
-    assert registry.get("trendyol") is not None
-    assert "trendyol" not in registry.catalog_definitions()
-    assert "trendyol" not in POLICIES
+    sample = registry.SourceDefinition(
+        slug="ornekpazar",
+        kind="api",
+        status="sample",
+        listing_only=True,
+        identity=registry.TRENDYOL.identity,
+        merchant=registry.MerchantInfo("Ornek", "ornek.example", "user_discovered"),
+        constraints=registry.TRENDYOL.constraints,
+    )
+    registry._REGISTRY[sample.slug] = sample
+    try:
+        assert "ornekpazar" not in registry.catalog_definitions()
+        # Karar 0221: dogrulanmamis listing_only kaynak da cozumleyiciden DISLANIR (fail-closed).
+        assert "ornekpazar" in registry.listing_only_slugs()
+    finally:
+        del registry._REGISTRY[sample.slug]
 
 
 def test_registry_matches_existing_merchant_profiles() -> None:

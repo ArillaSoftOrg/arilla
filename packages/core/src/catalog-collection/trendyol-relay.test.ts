@@ -49,6 +49,9 @@ describe("parti planlama", () => {
       externalId: "857296094",
       priceMinor: 12_499_900,
       sellerName: "Akarsu İletişim Teknoloji Ürünleri",
+      // Karar 0221: barkod ve marka sunucuya (catalog_intake_record.gtin/brand) gider.
+      gtin: "195949771569",
+      brand: "Apple",
       sourcePage: "product_page",
     });
     expect(plan.captureIds).toEqual(["capture-0001", "capture-0002"]);
