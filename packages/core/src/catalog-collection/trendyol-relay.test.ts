@@ -162,6 +162,22 @@ describe("mesaj protokolu", () => {
     });
   });
 
+  it("zamanlanmis gezinme (karar 0221) yalniz toplanabilir Trendyol adresine", () => {
+    const msg = (data: Record<string, unknown>) =>
+      parseToExtensionMessage({ channel: RELAY_CHANNEL, ...data });
+    const url = "https://www.trendyol.com/adidas/samba-og-p-813659620";
+    expect(msg({ type: "navigate", runId: 3, url })).toEqual({
+      channel: RELAY_CHANNEL,
+      type: "navigate",
+      runId: 3,
+      url,
+    });
+    expect(msg({ type: "navigate", runId: 3, url: "https://www.trendyol.com/sepet" })).toBeNull();
+    expect(msg({ type: "navigate", runId: 3, url: "https://evil.example/x-p-1" })).toBeNull();
+    expect(msg({ type: "navigate", runId: 0, url })).toBeNull();
+    expect(msg({ type: "finish" })).toEqual({ channel: RELAY_CHANNEL, type: "finish" });
+  });
+
   it("icerik betigi yakalamasi DOM'dan okur", () => {
     const doc = {
       querySelectorAll: () => [

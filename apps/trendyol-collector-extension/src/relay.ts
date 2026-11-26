@@ -9,7 +9,7 @@ import {
   RELAY_CHANNEL,
   type ToPageMessage,
 } from "@arilla/core/catalog-collection-trendyol-relay";
-import { ARMED_KEY, QUEUE_KEY, readQueue } from "./storage.ts";
+import { ARMED_KEY, armedRunId, FINISH_KEY, NAV_KEY, QUEUE_KEY, readQueue } from "./storage.ts";
 
 function post(message: ToPageMessage): void {
   window.postMessage(message, window.location.origin);
@@ -31,6 +31,14 @@ window.addEventListener("message", (event: MessageEvent) => {
     } else if (msg.type === "disarm") {
       // Kosu kapandi: bekleyen yakalamalar baska kosuya karismasin diye silinir.
       await chrome.storage.local.remove([ARMED_KEY, QUEUE_KEY]);
+    } else if (msg.type === "navigate") {
+      // Zamanlanmis koşu (karar 0221): adresi arka plan zamanlayicisi acar; yalniz silahli kosu.
+      if ((await armedRunId()) !== msg.runId) return;
+      await chrome.storage.local.set({
+        [NAV_KEY]: { runId: msg.runId, url: msg.url, at: Date.now() },
+      });
+    } else if (msg.type === "finish") {
+      await chrome.storage.local.set({ [FINISH_KEY]: Date.now() });
     } else if (msg.type === "ack") {
       await chrome.storage.local.set({
         [QUEUE_KEY]: ackCaptures(await readQueue(), msg.captureIds),

@@ -2802,6 +2802,10 @@ CREATE INDEX collection_run_source_idx ON collection_run (source, reserved_at DE
 --     daily_max_requests / monthly_max_requests / monthly_max_products INTEGER (NULL = uygulanmaz);
 --     collection_source_window_lt_interval yalniz min_interval_days > 0 iken uygulanir;
 --     collection_source_reported_scope korunur (bildirilen izinde max_runs_per_month NOT NULL ve <= 4).
+-- 0119 (karar 0220/0221 eki): collection_source.max_runs_per_week SMALLINT (NULL = uygulanmaz,
+--     >= 1); collection_run_quota_guard kayan 7 gunde kosu sayisini da denetler
+--     (`collection_quota_week`). HB ve Trendyol icin 100; HB aylik kosu siniri 400
+--     (kullanici beyani 26 Kasim 2026, belge incelenmedi).
 --   collection_run: requests_reserved INTEGER (HTTP isteginden ONCE rezerve, azalmaz,
 --     requests_made <= requests_reserved <= max_requests), products_counted BIGINT.
 CREATE TABLE collection_usage_day (

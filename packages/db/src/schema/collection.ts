@@ -33,6 +33,8 @@ export const collectionSource = pgTable("collection_source", {
   minIntervalDays: smallint("min_interval_days").notNull(),
   /** 0075: NULL = ayda kosu sayisi sinirsiz. */
   maxRunsPerMonth: smallint("max_runs_per_month"),
+  /** 0119: kayan 7 gunde en fazla kosu; NULL = uygulanmaz. */
+  maxRunsPerWeek: smallint("max_runs_per_week"),
   runWindowDays: smallint("run_window_days").notNull(),
   initialMaxRequests: integer("initial_max_requests").notNull(),
   refreshMaxRequests: integer("refresh_max_requests").notNull(),

@@ -26,6 +26,7 @@ import { sql } from "drizzle-orm";
 import {
   type CollectionFreshness,
   readCollectionFreshness,
+  SCHEDULED_SOURCES,
 } from "../catalog-collection/schedule.ts";
 import { LINK_RESOLUTION_QUEUE_KEY, linkQueueBackend } from "../discovery/link-queue.ts";
 import { IN_FLIGHT_TTL_MS } from "../discovery/link-resolution.ts";
@@ -363,8 +364,8 @@ export interface OperationsOverview {
   merchants: Check<MerchantAttentionItem[]>;
   /** Onay bekleyen besleme karantinası (karar 0152/0175). */
   feedQuarantine: Check<FeedQuarantineItem[]>;
-  /** Hepsiburada toplama/teklif tazeligi (karar 0220). */
-  collectionFreshness: Check<CollectionFreshness>;
+  /** Zamanlayicili kaynaklarin (Hepsiburada, Trendyol) toplama/teklif tazeligi (0220/0221). */
+  collectionFreshness: Check<CollectionFreshness[]>;
 }
 
 export async function getOperationsOverview(
@@ -396,7 +397,7 @@ export async function getOperationsOverview(
     check(() => costWindow(db)),
     check(() => listMerchantAttention(db, actor, now)),
     check(() => listFeedQuarantine(db)),
-    check(() => readCollectionFreshness(db)),
+    check(() => Promise.all(SCHEDULED_SOURCES.map((s) => readCollectionFreshness(db, s)))),
   ]);
   return {
     generatedAt: now,

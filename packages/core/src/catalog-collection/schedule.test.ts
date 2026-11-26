@@ -3,71 +3,85 @@ import {
   autoCollectFlagEnabled,
   type CollectionFreshness,
   collectionFreshnessFindings,
+  MAX_SCHEDULED_URLS,
   type ScheduleInput,
   scheduleVerdict,
   templateFromRun,
+  trendyolTemplateFromUnits,
 } from "./schedule.ts";
 
 const NOW = new Date("2026-11-26T10:00:00Z");
 const DAY = 86_400_000;
-const TEMPLATE = { runId: 3, queries: ["kulaklik"], maxPages: 3 };
+const TEMPLATE = { runId: 3, queries: ["kulaklik"], maxPages: 3, urls: [] };
+
+type Quota = ScheduleInput["status"]["quota"];
+const quota = (over: Partial<Quota> = {}): Quota =>
+  ({ canStart: true, blockedBy: null, nextAllowedAt: null, ...over }) as Quota;
 
 function input(over: Partial<ScheduleInput> = {}): ScheduleInput {
   return {
     flagEnabled: true,
-    status: { quota: { canStart: true } as ScheduleInput["status"]["quota"], openRun: null },
-    lastCountedAt: new Date(NOW.getTime() - 8 * DAY),
-    runsThisMonth: 1,
+    status: { quota: quota(), openRun: null },
     template: TEMPLATE,
     now: NOW,
     ...over,
   };
 }
 
-describe("scheduleVerdict (karar 0220)", () => {
-  it("bayrak, 7 gun, ay tavani, kota ve sablon tamamsa kosu acilabilir", () => {
-    const v = scheduleVerdict(input());
-    expect(v).toMatchObject({ due: true, blockedBy: null, template: TEMPLATE });
+describe("scheduleVerdict (karar 0220/0221): kota KAYNAK POLITIKASINDAN", () => {
+  it("bayrak, politika kotasi ve sablon tamamsa kosu acilabilir", () => {
+    expect(scheduleVerdict(input())).toMatchObject({ due: true, blockedBy: null });
   });
 
   it("bayrak kapaliyken hicbir kosu acmaz", () => {
     expect(scheduleVerdict(input({ flagEnabled: false })).blockedBy).toBe("flag_off");
   });
 
-  it("son kosudan 7 gun gecmeden acmaz; en erken ani bildirir", () => {
-    const last = new Date(NOW.getTime() - 6 * DAY);
-    const v = scheduleVerdict(input({ lastCountedAt: last }));
-    expect(v.due).toBe(false);
-    expect(v.blockedBy).toBe("interval");
-    expect(v.nextAllowedAt?.toISOString()).toBe(new Date(last.getTime() + 7 * DAY).toISOString());
+  it("kodda gomulu 7 gun / ayda 4 YOK: politika izin veriyorsa ayni gun yeni kosu acilir", () => {
+    // Politika: aralik 0, ayda 400, haftada 100 (kullanici beyani 26 Kasim 2026).
+    expect(scheduleVerdict(input({ status: { quota: quota(), openRun: null } })).due).toBe(true);
   });
 
-  it("takvim ayinda 4 kosu yapildiysa sonraki ay basina erteler (DB politikasi gevsek olsa bile)", () => {
-    const v = scheduleVerdict(input({ runsThisMonth: 4 }));
-    expect(v.blockedBy).toBe("month");
-    expect(v.nextAllowedAt?.toISOString()).toBe("2026-12-01T00:00:00.000Z");
+  it.each([
+    ["interval", "interval"],
+    ["week", "week"],
+    ["month", "month"],
+    ["daily_requests", "quota"],
+    ["disabled", "quota"],
+  ] as const)("politika engeli %s -> %s", (blocked, expected) => {
+    const v = scheduleVerdict(
+      input({
+        status: { quota: quota({ canStart: false, blockedBy: blocked }), openRun: null },
+      }),
+    );
+    expect(v).toMatchObject({ due: false, blockedBy: expected });
   });
 
-  it("acik kosu varsa yeni kosu acmaz (otomatik surdurme yok)", () => {
-    const v = scheduleVerdict(input({ status: { ...input().status, openRun: {} as never } }));
+  it("aralik/hafta engelinde en erken an politikadan; ay doluysa sonraki ay basi", () => {
+    const at = new Date(NOW.getTime() + 2 * DAY);
+    const week = scheduleVerdict(
+      input({
+        status: {
+          quota: quota({ canStart: false, blockedBy: "week", nextAllowedAt: at }),
+          openRun: null,
+        },
+      }),
+    );
+    expect(week.nextAllowedAt?.toISOString()).toBe(at.toISOString());
+    const month = scheduleVerdict(
+      input({ status: { quota: quota({ canStart: false, blockedBy: "month" }), openRun: null } }),
+    );
+    expect(month.nextAllowedAt?.toISOString()).toBe("2026-12-01T00:00:00.000Z");
+  });
+
+  it("acik kosu varsa yeni kosu acmaz (otomatik surdurme yok); sablon yoksa acmaz", () => {
+    const v = scheduleVerdict(input({ status: { quota: quota(), openRun: {} as never } }));
     expect(v.blockedBy).toBe("open_run");
-  });
-
-  it("kaynak kotasi izin vermiyorsa ya da sablon yoksa acmaz", () => {
-    const blocked = input({
-      status: { quota: { canStart: false } as ScheduleInput["status"]["quota"], openRun: null },
-    });
-    expect(scheduleVerdict(blocked).blockedBy).toBe("quota");
     expect(scheduleVerdict(input({ template: null })).blockedBy).toBe("no_template");
-  });
-
-  it("hic kosu yoksa ilk kosu da sablonsuz acilamaz (ilk yukleme elle ve kotaya sayilir)", () => {
-    const v = scheduleVerdict(input({ lastCountedAt: null, runsThisMonth: 0, template: null }));
-    expect(v.blockedBy).toBe("no_template");
   });
 });
 
-describe("templateFromRun", () => {
+describe("templateFromRun (Hepsiburada)", () => {
   const run = (over: Record<string, unknown> = {}) => ({
     id: 9,
     status: "completed",
@@ -81,6 +95,7 @@ describe("templateFromRun", () => {
       runId: 9,
       queries: ["kulaklik", "telefon"],
       maxPages: 50,
+      urls: [],
     });
   });
 
@@ -90,6 +105,38 @@ describe("templateFromRun", () => {
     expect(templateFromRun(run({ checkpoint: { mode: "discovery", queries: ["x"] } }))).toBeNull();
     expect(templateFromRun(run({ checkpoint: { queries: [] } }))).toBeNull();
     expect(templateFromRun(run({ checkpoint: null }))).toBeNull();
+  });
+});
+
+describe("trendyolTemplateFromUnits (karar 0221)", () => {
+  const product = "https://www.trendyol.com/apple/iphone-16-pro-128gb-col-titanyum-p-857296094";
+
+  it("urun sayfasi kayitli kanonik adresle, liste yolu kokenle; /sr ve kayitsiz urun atlanir", () => {
+    expect(
+      trendyolTemplateFromUnits(7, [
+        { kind: "product_page", unitKey: "857296094", url: product },
+        { kind: "product_page", unitKey: "857296094", url: product },
+        { kind: "product_page", unitKey: "111", url: null },
+        { kind: "listing_page", unitKey: "/apple-cep-telefonu-x-b101470-c103498", url: null },
+        { kind: "listing_page", unitKey: "/sr", url: null },
+        { kind: "product_page", unitKey: "9", url: "https://www.trendyol.com/sepet" },
+      ]),
+    ).toEqual({
+      runId: 7,
+      queries: [],
+      maxPages: 1,
+      urls: [product, "https://www.trendyol.com/apple-cep-telefonu-x-b101470-c103498"],
+    });
+  });
+
+  it("adres yoksa sablon yok; ust sinir kosu butcesi", () => {
+    expect(trendyolTemplateFromUnits(7, [])).toBeNull();
+    const many = Array.from({ length: 600 }, (_, i) => ({
+      kind: "product_page",
+      unitKey: String(i + 1),
+      url: `https://www.trendyol.com/m/u-p-${i + 1}`,
+    }));
+    expect(trendyolTemplateFromUnits(7, many)?.urls).toHaveLength(MAX_SCHEDULED_URLS);
   });
 });
 
@@ -129,7 +176,24 @@ describe("collectionFreshnessFindings", () => {
       NOW,
     );
     expect(f?.severity).toBe("warning");
+    expect(f?.key).toBe("collection.hepsiburada.freshness");
     expect(f?.evidence).toContain("40 gün önce");
     expect(f?.href).toBe("/yonetim/katalog/toplama");
+  });
+
+  it("Trendyol ayni 8 gun sinirini kendi anahtari ve sayfasiyla alir", () => {
+    const ok = collectionFreshnessFindings(
+      { ...base, source: "trendyol", newestOfferSeenAt: new Date(NOW.getTime() - 7 * DAY) },
+      NOW,
+    );
+    expect(ok[0]).toMatchObject({ key: "collection.trendyol.freshness", severity: "healthy" });
+    const [stale] = collectionFreshnessFindings(
+      { ...base, source: "trendyol", newestOfferSeenAt: new Date(NOW.getTime() - 9 * DAY) },
+      NOW,
+    );
+    expect(stale).toMatchObject({
+      severity: "warning",
+      href: "/yonetim/katalog/toplama/trendyol",
+    });
   });
 });

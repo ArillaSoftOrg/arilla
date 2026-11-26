@@ -6,7 +6,7 @@ import { build } from "esbuild";
 const dev = process.argv.includes("--dev");
 await mkdir("dist", { recursive: true });
 await build({
-  entryPoints: { capture: "src/capture.ts", relay: "src/relay.ts" },
+  entryPoints: { capture: "src/capture.ts", relay: "src/relay.ts", scheduler: "src/scheduler.ts" },
   outdir: "dist",
   bundle: true,
   format: "iife",
