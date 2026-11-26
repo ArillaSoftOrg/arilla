@@ -121,3 +121,19 @@ def test_gate_accepts_product_keyed_offer() -> None:
 )
 def test_gate_rejects_non_canonical_identity(external_id: str, url: str, reason: str) -> None:
     assert evaluate(_offer(external_id, url), POLICIES["trendyol"]).skip == reason
+
+
+def test_trendyol_freshness_matches_weekly_or_faster_collection() -> None:
+    """Karar 0221: Trendyol HB ile ayni 8 gun tazelik alir; 2 gunluk (0160) esik haftalik
+    toplanan teklifi kapida bayat yapardi. Acik deger yalniz sikilastirir."""
+    from dataclasses import replace
+
+    from catalog_build.auto import AutoOptions
+    from catalog_build.source_config import effective_options, plan_for
+
+    plan = plan_for("trendyol")
+    assert plan.max_stale_days == 8 and plan.may_publish
+    opts = replace(AutoOptions(), merchant="trendyol", stale_days=None)
+    assert effective_options(opts, plan)[0].stale_days == 8
+    assert effective_options(replace(opts, stale_days=30), plan)[0].stale_days == 8
+    assert effective_options(replace(opts, stale_days=3), plan)[0].stale_days == 3

@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
   "name": "ManiCepte Trendyol toplayici (yonetici)",
-  "version": "0.1.0",
-  "description": "Yoneticinin actigi Trendyol urun/liste sayfasindaki veriyi okur ve ManiCepte yonetim sayfasina aktarir. Ag istegi atmaz (karar 0118).",
+  "version": "0.2.0",
+  "description": "Yoneticinin actigi Trendyol urun/liste sayfasindaki veriyi okur ve ManiCepte yonetim sayfasina aktarir. Ag istegi atmaz (karar 0118); zamanlanmis kosuda yonetim sayfasinin istedigi sayfalari yoneticinin tarayicisinda tek sekmede acar (karar 0221).",
   "permissions": ["storage"],
+  "background": { "service_worker": "scheduler.js" },
   "content_scripts": [
     {
       "matches": ["https://www.trendyol.com/*"],

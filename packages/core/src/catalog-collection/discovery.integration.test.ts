@@ -301,7 +301,7 @@ describe("kesif defteri - entegrasyon (gercek Postgres)", () => {
     expect(n).toBe(3); // eksik tarama/kapanis hicbir kimligi silmez ya da pasiflestirmez
   });
 
-  it("migration 0075 + 0078: yeni politika (20.000/gun, 60.000/ay, urun sinirsiz) ve aralik kalkti", async () => {
+  it("migration 0075 + 0078 + 0119: yeni politika (20.000/gun, 60.000/ay, urun sinirsiz, ayda 400 kosu) ve aralik kalkti", async () => {
     const pol = await withOwnerClient(
       async (c) =>
         (
@@ -314,7 +314,7 @@ describe("kesif defteri - entegrasyon (gercek Postgres)", () => {
       initial_max_requests: 20000,
       refresh_max_requests: 20000,
       min_interval_days: 0,
-      max_runs_per_month: null,
+      max_runs_per_month: 400, // 0119: kullanici beyani (26 Kasim 2026)
       run_window_days: 6,
       daily_max_requests: 20000,
       monthly_max_requests: 60000,

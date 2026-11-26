@@ -35,7 +35,7 @@ export function CollectorClient({
   source: string;
   canStart: boolean;
   openRun: OpenRun | null;
-  /** Zamanlanmis haftalik yenileme bayragi (`CATALOG_AUTO_COLLECT_ENABLED`, karar 0220). */
+  /** Zamanlanmis yenileme bayragi (`CATALOG_AUTO_COLLECT_ENABLED`, karar 0220/0221). */
   autoEnabled?: boolean;
 }) {
   const [queries, setQueries] = useState(
@@ -118,9 +118,9 @@ export function CollectorClient({
     }
   }
 
-  // Zamanlanmis haftalik yenileme (karar 0220): yalniz bu sekme acik, gorunur ve belge bu
-  // yolda yuklenmisken sunucuya sorar. Acik kosu otomatik SURDURULMEZ (0117: otomatik yeniden
-  // deneme yok); sunucu izin kurallarini (7 gun, ayda 4) kendisi uygular.
+  // Zamanlanmis yenileme (karar 0220/0221): yalniz bu sekme acik, gorunur ve belge bu yolda
+  // yuklenmisken sunucuya sorar. Acik kosu otomatik SURDURULMEZ (0117: otomatik yeniden deneme
+  // yok); sunucu kaynak politikasini (aralik, haftalik/aylik kosu, hacim) kendisi uygular.
   // biome-ignore lint/correctness/useExhaustiveDependencies: zamanlayici yalniz bayrakla kurulur
   useEffect(() => {
     if (!autoEnabled) return;
@@ -130,7 +130,7 @@ export function CollectorClient({
       if (!collectionPageLoadedAsDocument()) return;
       const state = await api({ op: "schedule_status", source }).catch(() => null);
       if (cancelled || !state?.ok || !state.data?.due || busy.current) return;
-      append("Zamanlanmış haftalık yenileme zamanı geldi; koşu açılıyor.");
+      append("Zamanlanmış yenileme zamanı geldi; koşu açılıyor.");
       const started = await api({ op: "schedule_start", source }).catch(() => null);
       if (!started?.ok) {
         append(`Zamanlanmış koşu açılamadı: ${started?.data?.error ?? "bağlantı hatası"}`);
@@ -159,7 +159,8 @@ export function CollectorClient({
       {autoEnabled ? (
         <p>
           Zamanlanmış yenileme açık: bu sekme açık ve görünürken, izin verilen zaman geldiğinde son
-          koşunun sorgularıyla yeni koşu kendiliğinden başlar (haftada en fazla 1, ayda en fazla 4).
+          koşunun sorgularıyla yeni koşu kendiliğinden başlar (sıklık kaynak politikasındaki
+          haftalık ve aylık koşu sınırıyla).
         </p>
       ) : null}
       <label>

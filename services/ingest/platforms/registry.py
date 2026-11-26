@@ -256,10 +256,11 @@ HEPSIBURADA = register(
                 may_hotlink_images=True,
                 may_track_clicks=True,
             ),
-            # Karar 0220: bildirilen izin haftada 1 yenileme (0117). Fiyat tazeligi haftalik
-            # yenileme + 1 gun pay; 2 gun her HB urununu kapida bayat yapiyordu.
+            # Karar 0220: fiyat tazeligi haftalik yenileme + 1 gun pay; 2 gun her HB urununu
+            # kapida bayat yapiyordu. Kosu sikligi kaynak politikasindadir (collection_source,
+            # 0119: haftada 100 / ayda 400, kullanici beyani 26 Kasim 2026); burasi bilgi amaclidir.
             update=UpdateLimits(
-                min_refresh_interval=timedelta(days=7),
+                min_refresh_interval=timedelta(hours=1),
                 max_price_age=timedelta(days=8),
                 requests_per_minute=20,
                 daily_request_budget=20_000,
@@ -313,9 +314,11 @@ TRENDYOL = register(
                 may_track_clicks=True,
             ),
             update=UpdateLimits(
-                # Kota sistem seviyesindedir (0070/0075 tetikleyicisi): en az 7 gun, ayda 4.
-                min_refresh_interval=timedelta(days=7),
-                max_price_age=timedelta(days=2),
+                # Kota sistem seviyesindedir (collection_source + 0070/0075/0119 tetikleyicisi).
+                # Karar 0221: HB ile ayni tazelik; haftalik ya da daha sik toplama 2 gunluk (0160)
+                # esikle kapida bayat sayilmaz.
+                min_refresh_interval=timedelta(hours=1),
+                max_price_age=timedelta(days=8),
                 requests_per_minute=3,
                 max_concurrency=1,
                 batch_size=500,

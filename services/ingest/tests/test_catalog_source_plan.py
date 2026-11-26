@@ -70,10 +70,10 @@ def test_stale_days_is_only_ever_tightened() -> None:
 
 
 def test_hepsiburada_freshness_follows_weekly_permission() -> None:
-    """Karar 0220: HB haftada 1 yenilenebilir; tazelik 8 gun, en kisa yenileme 7 gun."""
+    """Karar 0220/0221: tazelik 8 gun; kosu sikligi kaynak politikasinda (haftada 100)."""
     hb = registry.get("hepsiburada")
     assert hb is not None
-    assert hb.constraints.update.min_refresh_interval.days == 7
+    assert hb.constraints.update.min_refresh_interval.total_seconds() == 3600
     plan = plan_for("hepsiburada")
     assert plan.max_stale_days == 8
     assert effective_options(replace(OPTS, merchant="hepsiburada"), plan)[0].stale_days == 8
@@ -87,6 +87,7 @@ def test_stale_days_map_is_per_source_and_only_tightens() -> None:
 
     default = stale_days_map(None)
     assert default["aliexpress"] == 2 and default["hepsiburada"] == 8
+    assert default["trendyol"] == 8  # karar 0221: HB ile ayni tazelik
     assert "test-cb-source" not in default  # kayitsiz: eski davranis
     explicit = stale_days_map(5)
     assert explicit["aliexpress"] == 2 and explicit["hepsiburada"] == 5

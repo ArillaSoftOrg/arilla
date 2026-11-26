@@ -1,4 +1,9 @@
-import { getCollectionStatus, isSourceFlagEnabled } from "@arilla/core";
+import {
+  autoCollectFlagEnabled,
+  getCollectionSchedule,
+  getCollectionStatus,
+  isSourceFlagEnabled,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { notFound } from "next/navigation";
 import { requireCapability } from "../../../../lib/dal.ts";
@@ -18,17 +23,34 @@ export const dynamic = "force-dynamic";
 const BLOCKED_TEXT: Record<string, string> = {
   disabled: "Kaynak kapalı (collection_source.enabled = false).",
   open_run: "Açık bir toplama koşusu var; sürdürülebilir.",
-  interval: "En az 7 gün aralık dolmadı.",
+  interval: "Kaynak politikasındaki en az aralık dolmadı.",
+  week: "Son 7 günün koşu hakkı doldu.",
   month: "Bu takvim ayının koşu hakkı doldu.",
   daily_requests: "Bugünkü HTTP isteği hakkı doldu; UTC gün dönümünde yenilenir.",
   monthly_requests: "Bu ayın HTTP isteği hakkı doldu; UTC ay başında yenilenir.",
   monthly_products: "Bu ayın ürün hakkı doldu; UTC ay başında yenilenir.",
 };
 
+/** Zamanlanmis toplama engel nedenleri (karar 0221; zamanlayici Hepsiburada ile ortak). */
+const SCHEDULE_TEXT: Record<string, string> = {
+  flag_off: "Kapalı (CATALOG_AUTO_COLLECT_ENABLED).",
+  no_template: "Kapanmış ve sayfa okunmuş bir koşu yok; ilk koşu elle yapılmalı.",
+  interval: "Kaynak politikasındaki en az aralık dolmadı.",
+  week: "Son 7 günün koşu hakkı doldu.",
+  month: "Bu takvim ayının koşu hakkı doldu.",
+  open_run: "Açık koşu var; elle tamamlanmalı ya da iptal edilmeli.",
+  quota: "Kaynak kotası yeni koşuya izin vermiyor.",
+};
+
 export default async function TrendyolCollectionPage() {
   const { actor } = await requireCapability("catalog.write");
   if (!isSourceFlagEnabled("trendyol")) notFound();
-  const status = await getCollectionStatus(getDatabase(), actor, "trendyol");
+  const db = getDatabase();
+  const autoEnabled = autoCollectFlagEnabled();
+  const status = await getCollectionStatus(db, actor, "trendyol");
+  const schedule = await getCollectionSchedule(db, actor, "trendyol", {
+    flagEnabled: autoEnabled,
+  });
   const q = status.quota;
 
   return (
@@ -48,6 +70,12 @@ export default async function TrendyolCollectionPage() {
               q.maxRunsPerMonth === null ? "sınırsız" : formatCount(q.maxRunsPerMonth)
             }`}
           />
+          <KpiCard
+            label="Son 7 gün koşu"
+            value={`${formatCount(q.runsThisWeek)} / ${
+              q.maxRunsPerWeek === null ? "sınırsız" : formatCount(q.maxRunsPerWeek)
+            }`}
+          />
           <KpiCard label="En az aralık" value={`${q.minIntervalDays} gün`} />
           <KpiCard label="Sonraki izinli zaman" value={formatDateOrDash(q.nextAllowedAt)} />
           <KpiCard
@@ -55,6 +83,14 @@ export default async function TrendyolCollectionPage() {
             value={q.canStart ? "Başlatılabilir" : "Başlatılamaz"}
             tone={q.canStart ? "neutral" : "warning"}
             note={q.blockedBy ? BLOCKED_TEXT[q.blockedBy] : undefined}
+          />
+          <KpiCard
+            label="Zamanlanmış toplama"
+            value={schedule.due ? "Zamanı geldi" : schedule.flagEnabled ? "Bekliyor" : "Kapalı"}
+            tone={schedule.blockedBy === "open_run" ? "warning" : "neutral"}
+            note={`En erken: ${formatDateOrDash(schedule.nextAllowedAt)} · şablon ${
+              schedule.template ? `${formatCount(schedule.template.urls.length)} adres` : "yok"
+            }${schedule.blockedBy ? ` · ${SCHEDULE_TEXT[schedule.blockedBy]}` : ""}`}
           />
         </KpiGroup>
       </Section>
@@ -65,6 +101,7 @@ export default async function TrendyolCollectionPage() {
         description="Okunan: ürün kimliği, ad, marka, satış fiyatı, görseller, kanonik bağlantı, ana satıcı, fiyatın ait olduğu beden ve onun barkodu. Okunmayan: diğer satıcıların teklifleri, stok, satıcı kişisel bilgileri, yorumlar. Sepet indirimi satış fiyatı sayılmaz. Her açılan ürün ya da liste sayfası bir istektir."
       >
         <TrendyolRelayClient
+          autoEnabled={autoEnabled}
           canStart={q.canStart}
           openRun={
             status.openRun

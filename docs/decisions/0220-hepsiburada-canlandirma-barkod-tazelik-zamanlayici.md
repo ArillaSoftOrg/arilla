@@ -6,6 +6,12 @@ Hepsiburada'ya istek atılmadı. Zamanlayıcı bayrağı varsayılan kapalı.
 **İlişkili:** 0111 (kimlik düzeyi), 0117 (yönetici tarayıcısından toplama; bu karar "otomasyon"
 bölümünü ekler), 0124 (hacim kotası), 0130 (katalog birleşimi), 0164 (kaynak kayıt defteri).
 
+> **Ek (26 Kasım 2026, karar 0221 §B, migration 0119):** Kullanıcı beyanı — Hepsiburada ve
+> Trendyol toplaması haftada en fazla **100**, ayda en fazla **400** koşuya kadar izinli. Belgeler
+> **incelenmedi**; dayanak `declared_extended`. Koddaki sabit "7 gün / ayda 4" kaldırıldı: zamanlayıcı
+> (tek, iki kaynak için ortak) kotayı `collection_source` politikasından alır (`min_interval_days`,
+> `max_runs_per_month`, yeni `max_runs_per_week`); tetikleyici haftalık sınırı da zorlar.
+
 ## Sorun (üretim, salt okunur, Kasım 2026)
 
 - Hepsiburada (merchant 28): 2.017 teklif, hepsinin `last_seen_at` değeri 16 Ekim; tek `hb_merge` 17 Ekim.

@@ -81,6 +81,7 @@ const STATUS_BY_CODE: Record<string, number> = {
   unknown_source: 404,
   collection_quota_interval: 429,
   collection_quota_month: 429,
+  collection_quota_week: 429,
   collection_quota_daily_requests: 429,
   collection_quota_monthly_requests: 429,
   collection_quota_monthly_products: 429,

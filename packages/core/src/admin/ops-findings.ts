@@ -791,11 +791,11 @@ export function operationsFindings(ops: OperationsOverview): AdminFinding[] {
         ),
       ];
   const collection: AdminFinding[] = ops.collectionFreshness.ok
-    ? collectionFreshnessFindings(ops.collectionFreshness.value, now)
+    ? ops.collectionFreshness.value.flatMap((f) => collectionFreshnessFindings(f, now))
     : [
         unknown(
-          "collection.hepsiburada.freshness",
-          "Hepsiburada toplama tazeliği",
+          "collection.freshness",
+          "Toplama tazeliği (Hepsiburada, Trendyol)",
           ops.collectionFreshness.error,
           "/yonetim/katalog/toplama",
           now,

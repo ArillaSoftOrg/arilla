@@ -34,6 +34,7 @@ const BLOCKED_TEXT: Record<string, string> = {
   open_run: "Açık bir toplama koşusu var; sürdürülebilir.",
   interval: "Koşular arası en az aralık dolmadı.",
   month: "Bu takvim ayının koşu hakkı doldu.",
+  week: "Son 7 günün koşu hakkı doldu.",
   daily_requests: "Bugünkü HTTP isteği hakkı doldu; UTC gün dönümünde yenilenir.",
   monthly_requests: "Bu ayın HTTP isteği hakkı doldu; UTC ay başında yenilenir.",
   monthly_products: "Bu ayın ürün hakkı doldu; UTC ay başında yenilenir.",
@@ -43,8 +44,9 @@ const BLOCKED_TEXT: Record<string, string> = {
 const SCHEDULE_TEXT: Record<string, string> = {
   flag_off: "Kapalı (CATALOG_AUTO_COLLECT_ENABLED).",
   no_template: "Kapanmış bir arama koşusu yok; ilk koşu elle başlatılmalı.",
-  interval: "Son koşudan bu yana 7 gün dolmadı.",
-  month: "Bu takvim ayında 4 koşu yapıldı.",
+  interval: "Kaynak politikasındaki en az aralık dolmadı.",
+  week: "Son 7 günün koşu hakkı doldu (kaynak politikası).",
+  month: "Bu takvim ayının koşu hakkı doldu (kaynak politikası).",
   open_run: "Açık koşu var; elle sürdürülmeli.",
   quota: "Kaynak kotası yeni koşuya izin vermiyor.",
 };
@@ -111,10 +113,10 @@ export default async function CatalogCollectionPage() {
             note={q.blockedBy ? BLOCKED_TEXT[q.blockedBy] : undefined}
           />
           <KpiCard
-            label="Zamanlanmış haftalık yenileme"
+            label="Zamanlanmış yenileme"
             value={schedule.due ? "Zamanı geldi" : schedule.flagEnabled ? "Bekliyor" : "Kapalı"}
             tone={schedule.blockedBy === "open_run" ? "warning" : "neutral"}
-            note={`İzne göre en erken: ${formatDateOrDash(schedule.nextAllowedAt)} · bu ay ${schedule.runsThisMonth}/4 koşu${
+            note={`İzne göre en erken: ${formatDateOrDash(schedule.nextAllowedAt)} · son 7 gün ${schedule.runsThisWeek}/${schedule.maxRunsPerWeek ?? "sınırsız"} · bu ay ${schedule.runsThisMonth}/${schedule.maxRunsPerMonth ?? "sınırsız"} koşu${
               schedule.blockedBy ? ` · ${SCHEDULE_TEXT[schedule.blockedBy]}` : ""
             }`}
           />

@@ -35,7 +35,7 @@ export class CollectionError extends Error {
 }
 
 const TRIGGER_CODES =
-  /(collection_(?:source_unknown|disabled|quota_interval|quota_month|quota_daily_requests|quota_monthly_requests|quota_monthly_products|run_not_open|run_expired|run_immutable|run_closed|requests_decrease|products_decrease|bytes_decrease|observed_at_out_of_range))(?![a-z_])/;
+  /(collection_(?:source_unknown|disabled|quota_interval|quota_month|quota_week|quota_daily_requests|quota_monthly_requests|quota_monthly_products|run_not_open|run_expired|run_immutable|run_closed|requests_decrease|products_decrease|bytes_decrease|observed_at_out_of_range))(?![a-z_])/;
 
 /**
  * Postgres tetikleyici istisnalari bilinen `collection_*` kodlariyla gelir. Surucu
@@ -140,6 +140,8 @@ export type QuotaBlock =
   | "open_run"
   | "interval"
   | "month"
+  /** 0119: kayan 7 gunde en fazla kosu (`max_runs_per_week`). */
+  | "week"
   | "daily_requests"
   | "monthly_requests"
   | "monthly_products";
@@ -222,6 +224,10 @@ export interface QuotaState {
   /** null = ayda kosu sayisi sinirsiz. */
   maxRunsPerMonth: number | null;
   runsThisMonth: number;
+  /** 0119: null = haftalik kosu tavani yok. */
+  maxRunsPerWeek: number | null;
+  /** Kayan son 7 gunde sayilan kosu. */
+  runsThisWeek: number;
   /** Bu istekte YENI kosu rezervasyonu yapilabilir mi (tetikleyici yine son karari verir). */
   canStart: boolean;
   /** Acik kosu var ve kota devam etmeye izin veriyor. */
@@ -323,18 +329,39 @@ export async function getCollectionStatus(
     .where(eq(collectionRun.source, source))
     .orderBy(desc(collectionRun.reservedAt))
     .limit(12);
-  // Ilk yukleme kota disi beyan edildiyse (declared_extended + not) araliga/aya sayilmaz.
-  const counted = runs.filter(
-    (r) => r.status !== "released" && !(r.kind === "initial" && policy.initialLoadExempt),
-  );
-  const anyCounted = runs.some((r) => r.status !== "released");
-  const month = (d: Date) => `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
-  const runsThisMonth = counted.filter((r) => month(r.reservedAt) === month(now)).length;
-  const last = counted[0]?.reservedAt ?? null;
-  const nextAllowedAt =
+  // Sayimlar SQL'de: 0119 ile ayda yuzlerce kosu olabilir, son 12 satir yetmez. Tetikleyiciyle
+  // ayni kural: `released` sayilmaz; ilk yukleme kota disi beyan edildiyse (declared_extended +
+  // not) araliga/haftaya/aya sayilmaz.
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const weekStart = new Date(now.getTime() - 7 * 86_400_000);
+  const [agg] = await db
+    .select({
+      any: sql<number>`count(*)`,
+      last: sql<
+        string | null
+      >`max(${collectionRun.reservedAt}) FILTER (WHERE NOT (${collectionRun.kind} = 'initial' AND ${policy.initialLoadExempt}))`,
+      month: sql<number>`count(*) FILTER (WHERE ${collectionRun.reservedAt} >= ${monthStart.toISOString()}::timestamptz AND NOT (${collectionRun.kind} = 'initial' AND ${policy.initialLoadExempt}))`,
+      week: sql<number>`count(*) FILTER (WHERE ${collectionRun.reservedAt} > ${weekStart.toISOString()}::timestamptz AND NOT (${collectionRun.kind} = 'initial' AND ${policy.initialLoadExempt}))`,
+      weekOldest: sql<
+        string | null
+      >`min(${collectionRun.reservedAt}) FILTER (WHERE ${collectionRun.reservedAt} > ${weekStart.toISOString()}::timestamptz AND NOT (${collectionRun.kind} = 'initial' AND ${policy.initialLoadExempt}))`,
+    })
+    .from(collectionRun)
+    .where(and(eq(collectionRun.source, source), sql`${collectionRun.status} <> 'released'`));
+  const anyCounted = Number(agg?.any ?? 0) > 0;
+  const runsThisMonth = Number(agg?.month ?? 0);
+  const runsThisWeek = Number(agg?.week ?? 0);
+  const last = agg?.last ? new Date(agg.last) : null;
+  let nextAllowedAt =
     last && policy.minIntervalDays > 0
       ? new Date(last.getTime() + policy.minIntervalDays * 86_400_000)
       : null;
+  const weekFull = policy.maxRunsPerWeek !== null && runsThisWeek >= policy.maxRunsPerWeek;
+  if (weekFull && agg?.weekOldest) {
+    // Penceredeki en eski kosu 7 gunu doldurunca bir hak acilir (yaklasik; tetikleyici son soz).
+    const byWeek = new Date(new Date(agg.weekOldest).getTime() + 7 * 86_400_000);
+    if (!nextAllowedAt || byWeek > nextAllowedAt) nextAllowedAt = byWeek;
+  }
   const open = runs.find((r) => r.status === "open") ?? null;
   const usage = await usageSnapshot(db, source, now);
   const limits = {
@@ -351,6 +378,7 @@ export async function getCollectionStatus(
   let blockedBy: QuotaState["blockedBy"] = null;
   if (!policy.enabled) blockedBy = "disabled";
   else if (open) blockedBy = "open_run";
+  else if (weekFull) blockedBy = "week";
   else if (nextAllowedAt && now < nextAllowedAt) blockedBy = "interval";
   else if (policy.maxRunsPerMonth !== null && runsThisMonth >= policy.maxRunsPerMonth) {
     blockedBy = "month";
@@ -362,6 +390,8 @@ export async function getCollectionStatus(
       minIntervalDays: policy.minIntervalDays,
       maxRunsPerMonth: policy.maxRunsPerMonth,
       runsThisMonth,
+      maxRunsPerWeek: policy.maxRunsPerWeek,
+      runsThisWeek,
       canStart: blockedBy === null,
       canResume: policy.enabled && open !== null && volumeBlock === null,
       blockedBy,
