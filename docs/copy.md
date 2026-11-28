@@ -594,6 +594,15 @@ sade biçimde belirir ve azaltılmış hareket tercihinde doğrudan görünür.
 | `email.marketing_reason` | Bu e-postayı, {marka} hesabında kampanya ve fırsat e-postalarına izin verdiğin için aldın. |
 | `email.marketing_manage` | İzinlerini hesabından da yönetebilirsin. |
 | `email.marketing_test_notice` | Bu bir test iletisidir. Gerçek alıcılara gönderilmedi; abonelikten çıkma bağlantısı test iletisinde çalışmaz. |
+| `email.team_contact_title` | Yeni iletişim mesajı |
+| `email.team_feedback_title` | Yeni geri bildirim |
+| `email.team_body` | Gönderenin bilgileri ve mesajın metni bu e-postada yer almaz; gelen kutusundan okuyabilirsin. |
+| `email.team_footer` | Bu bildirim, yönetimdeki e-posta ayarlarında açık olduğu için gönderildi. |
+| `email.visitor_contact_title` | Mesajını aldık |
+| `email.visitor_feedback_title` | Geri bildirimini aldık |
+| `email.visitor_contact_followup` | Mesajını inceleyip bu adrese yanıt vereceğiz. |
+| `email.visitor_feedback_followup` | Her geri bildirime tek tek yanıt veremeyebiliriz; ürünü geliştirirken hepsini dikkate alırız. |
+| `email.visitor_not_you` | Bunu sen göndermediysen bu e-postayı yok sayabilirsin; başka bir işlem gerekmez. |
 | `unsubscribe.title` | E-posta aboneliği |
 | `unsubscribe.body` | Kampanya ve fırsat e-postalarını artık almak istemiyorsan aşağıdaki düğmeye bas. |
 | `unsubscribe.submit` | Abonelikten çık |
@@ -601,6 +610,11 @@ sade biçimde belirir ve azaltılmış hareket tercihinde doğrudan görünür.
 | `unsubscribe.done_body` | Artık kampanya ve fırsat e-postası almayacaksın. Giriş bağlantısı ve kurduğun fiyat alarmları gibi hesap iletileri gelmeye devam eder. |
 | `unsubscribe.invalid_title` | Bağlantı geçersiz |
 | `unsubscribe.invalid_body` | Bu bağlantı geçersiz ya da artık kullanılamıyor. Test iletilerindeki bağlantı da çalışmaz. |
+
+Ekibe bildirim ve ziyaretçiye onay (karar 0222) de işlemseldir. Ekip bildirimi gönderenin
+e-postasını ve mesaj metnini **taşımaz**; ziyaretçi onayı kullanıcının yazdığı metni
+**yankılamaz**. İkisi de yönetimde `/yonetim/eposta` anahtarlarıyla açılır ve varsayılan
+olarak kapalıdır.
 
 Giriş, fiyat alarmı ve stok bildirimi **işlemsel iletidir.** Haftalık özet ve
 yönetimden gönderilen e-posta kampanyaları **ticari iletidir** ve ayrı izin

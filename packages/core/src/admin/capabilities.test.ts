@@ -53,6 +53,8 @@ const ADMIN_ONLY: Capability[] = [
   "data.read",
   "data.build",
   "data.export",
+  // Karar 0222.
+  "email.manage",
 ];
 const ALL: Capability[] = [...MODERATOR, ...ADMIN_ONLY];
 

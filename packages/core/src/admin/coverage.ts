@@ -494,6 +494,21 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
       "Yalnızca saat başına tıklama sayacı; IP, User-Agent, oturum, çerez ve yönlendiren adres yazılmaz (karar 0115).",
   },
   {
+    id: "email_settings",
+    label: "E-posta ayarları",
+    tables: ["email_setting"],
+    status: "visible",
+    adminPaths: ["/yonetim/eposta"],
+    gaps: [
+      {
+        signal: "Gönderilen e-postaların teslim durumu (sağlayıcı geri bildirimi)",
+        status: "external",
+      },
+    ],
+    privacy:
+      "Yalnızca dört açık/kapalı anahtar. Ekibe bildirim kişisel veri, gönderen e-postası ya da mesaj metni taşımaz (karar 0222).",
+  },
+  {
     id: "audit",
     label: "Denetim kaydı",
     tables: ["admin_audit_event"],
@@ -695,6 +710,8 @@ export const CAPABILITY_COVERAGE: Readonly<Record<Capability, CapabilityCoverage
   // Karar 0115: yalnızca sayaç; kişi tanımlayıcısı yok.
   "links.read": { class: "analyze", sensitive: false },
   "links.manage": { class: "manage", sensitive: false },
+  // Karar 0222: giden e-postayı açıp kapatır; anahtar değerleri dışında veri yok.
+  "email.manage": { class: "manage", sensitive: false },
 };
 
 /** Her denetim hedefi bir alt sisteme bağlıdır (`Record` eksik hedefi derlemede yakalar). */
@@ -714,6 +731,7 @@ export const AUDIT_TARGET_SUBSYSTEM: Readonly<Record<AdminTargetType, string>> =
   data_build: "data_intelligence",
   data_export: "data_intelligence",
   tracking_link: "tracking_links",
+  email_settings: "email_settings",
 };
 
 /** Kayıtta geçen bütün tablolar (test: `docs/schema.sql` ile birebir). */

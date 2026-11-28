@@ -4,7 +4,7 @@
  * attribution↔0007, search↔0008, discovery↔0009, user-intake↔0013,
  * admin↔0027, entitlement↔0034, marketing↔0035, activity↔0036,
  * search↔0040 (`search_query_day`), ops↔0041 (`job_run`),
- * search↔0044 (`query_interpretation`).
+ * search↔0044 (`query_interpretation`), email-setting↔0120.
  * feedback↔0032, forms↔0043, chat↔0054 (+0055 `chat_result_feedback`, +0057 `chat_attachment`),
  * trends↔0056 (`trend`, `trend_product`), ai-eval↔0060, data-intelligence↔0064,
  * external-category↔0096 (+0097 tohum verisi), tracking↔0080, collection↔0070, pricing↔0067, feed↔0065, 0066 (yeni tablolar; 0065'in `seller`/`canonical_variant` ve offer/offer_variant
@@ -28,6 +28,7 @@ export * from "./collection.ts";
 export * from "./creator.ts";
 export * from "./data-intelligence.ts";
 export * from "./discovery.ts";
+export * from "./email-setting.ts";
 export * from "./entitlement.ts";
 export * from "./external-category.ts";
 export * from "./feed.ts";

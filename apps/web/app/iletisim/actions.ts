@@ -1,10 +1,17 @@
 "use server";
 
-import { type SubmitContactResult, submitContact } from "@arilla/core";
+import {
+  notifyFormReceived,
+  type SubmitContactResult,
+  submitContact,
+  validateContact,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { clientIp } from "../lib/client-ip.ts";
 import { verifySession } from "../lib/dal.ts";
+import { CONTACT_CATEGORY_LABELS } from "./contact-copy.ts";
 
 export type ContactActionResult = SubmitContactResult | { status: "session_expired" };
 
@@ -18,6 +25,8 @@ export type ContactActionResult = SubmitContactResult | { status: "session_expir
  *   mesaj sessizce anonim yazılmaz, tekrar giriş önerilir.
  * - Beklenmeyen hata sabit bir durum olarak döner; logda form içeriği, ad ya
  *   da e-posta yer almaz.
+ * - E-posta bildirimi (karar 0222) kayıttan SONRA, yanıttan sonra (`after`) denenir; hatası
+ *   formu etkilemez. Hangi e-postanın gideceğine yönetimdeki anahtarlar karar verir.
  */
 export async function submitContactAction(
   expectedSignedIn: boolean,
@@ -28,11 +37,29 @@ export async function submitContactAction(
     if (expectedSignedIn === true && !user) {
       return { status: "session_expired" };
     }
-    return await submitContact(getDatabase(), {
-      fields: formData.entries(),
+    // `entries()` tek kullanımlık; gönderim ve bildirim aynı diziyi okur.
+    const fields = Array.from(formData.entries());
+    const db = getDatabase();
+    const result = await submitContact(db, {
+      fields,
       userId: user?.id ?? null,
       ip: clientIp(await headers()),
     });
+    if (result.status === "ok") {
+      const validated = validateContact(fields);
+      if (validated.ok) {
+        const { category, subject, email } = validated.value;
+        after(() =>
+          notifyFormReceived(db, {
+            kind: "contact",
+            categoryLabel: CONTACT_CATEGORY_LABELS[category],
+            title: subject,
+            visitorEmail: email,
+          }),
+        );
+      }
+    }
+    return result;
   } catch {
     console.error("[contact] unexpected failure");
     return { status: "unavailable" };

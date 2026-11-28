@@ -3141,3 +3141,19 @@ CREATE INDEX tracking_link_click_hour_time_idx ON tracking_link_click_hour (hour
 -- Baglanti silinmez (pasife alinir); sayac satirlari toplu temizlik disinda silinmez.
 REVOKE DELETE, TRUNCATE ON tracking_link FROM arilla_app;
 REVOKE TRUNCATE ON tracking_link_click_hour FROM arilla_app;
+
+-- ---------------------------------------------------------------------------
+-- E-POSTA AYARLARI (0120, karar 0222)
+-- ---------------------------------------------------------------------------
+
+-- Tek satir (`id = 1`). Yeni bildirimler KAPALI, mevcut e-postalar ACIK doger. Giris ve kimlik
+-- bilgisi e-postalarinin anahtari yoktur.
+CREATE TABLE email_setting (
+    id                    SMALLINT    PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    team_notifications    BOOLEAN     NOT NULL DEFAULT FALSE,
+    visitor_confirmations BOOLEAN     NOT NULL DEFAULT FALSE,
+    price_alerts          BOOLEAN     NOT NULL DEFAULT TRUE,
+    marketing_emails      BOOLEAN     NOT NULL DEFAULT TRUE,
+    updated_by            BIGINT      REFERENCES app_user(id) ON DELETE SET NULL,
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
+);

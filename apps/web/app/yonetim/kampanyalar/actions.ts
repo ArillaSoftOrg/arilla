@@ -181,6 +181,12 @@ export async function processNextBatchAction(
   }
   const result = await processMarketingCampaigns(db, { brand: SITE_BRAND, campaignId });
   refresh();
+  if (result.stoppedBy === "switched_off") {
+    return {
+      ok: false,
+      message: "Pazarlama gönderimi E-posta ayarlarından kapatılmış. Açınca kaldığı yerden sürer.",
+    };
+  }
   if (result.stoppedBy === "configuration_error" || result.stoppedBy === "bulk_send_disabled") {
     return {
       ok: false,

@@ -31,6 +31,7 @@ import { type Database, marketingCampaign, marketingCampaignDelivery } from "@ar
 import { and, eq, sql } from "drizzle-orm";
 import type { Transporter } from "nodemailer";
 import { requireAppUrl } from "../config/app-url.ts";
+import { readEmailSettings } from "../email/settings.ts";
 import { getSmtpTransport } from "../email/transport.ts";
 import {
   MarketingConfigError,
@@ -68,7 +69,9 @@ export type ProcessStop =
   | "batch_limit"
   | "time_budget"
   | "configuration_error"
-  | "bulk_send_disabled";
+  | "bulk_send_disabled"
+  /** Karar 0222: yonetimdeki e-posta ayarlarinda pazarlama gonderimi kapali. */
+  | "switched_off";
 
 export interface ProcessCampaignsResult {
   sent: number;
@@ -91,7 +94,7 @@ function scopeSql(campaignId: number | undefined, column: string) {
 async function markCampaignError(
   db: Database,
   campaignId: number | undefined,
-  code: "configuration_error" | "bulk_send_disabled",
+  code: "configuration_error" | "bulk_send_disabled" | "switched_off",
 ): Promise<void> {
   await db
     .update(marketingCampaign)
@@ -278,6 +281,13 @@ export async function processMarketingCampaigns(
   if (!config.bulkSendAllowed) {
     await markCampaignError(db, options.campaignId, "bulk_send_disabled");
     result.stoppedBy = "bulk_send_disabled";
+    return result;
+  }
+  // Karar 0222: yonetimdeki anahtar yalnizca EK bir kapatma dugmesidir; yukaridaki kapilari acmaz.
+  // Kapaliyken teslim tuketilmez, kampanya `sending`te kalir ve acilinca kaldigi yerden surer.
+  if (!(await readEmailSettings(db)).marketingEmails) {
+    await markCampaignError(db, options.campaignId, "switched_off");
+    result.stoppedBy = "switched_off";
     return result;
   }
 
