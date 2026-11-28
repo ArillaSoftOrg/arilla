@@ -1,10 +1,17 @@
 "use server";
 
-import { type SubmitFeedbackResult, submitFeedback } from "@arilla/core";
+import {
+  notifyFormReceived,
+  type SubmitFeedbackResult,
+  submitFeedback,
+  validateFeedback,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { clientIp } from "../lib/client-ip.ts";
 import { verifySession } from "../lib/dal.ts";
+import { FEEDBACK_CATEGORY_LABELS } from "./feedback-copy.ts";
 
 export type FeedbackActionResult = SubmitFeedbackResult | { status: "session_expired" };
 
@@ -19,6 +26,8 @@ export type FeedbackActionResult = SubmitFeedbackResult | { status: "session_exp
  *   sessizce anonim yazilmaz, kullaniciya tekrar giris onerilir.
  * - Beklenmeyen hata (orn. oturum sorgusu) kullaniciya sabit bir durum
  *   olarak doner; logda ayrinti, form icerigi ya da e-posta yer almaz.
+ * - E-posta bildirimi (karar 0222) kayittan SONRA, yanittan sonra (`after`) denenir; hatasi
+ *   formu etkilemez. Hangi e-postanin gidecegine yonetimdeki anahtarlar karar verir.
  */
 export async function submitFeedbackAction(
   expectedSignedIn: boolean,
@@ -29,11 +38,35 @@ export async function submitFeedbackAction(
     if (expectedSignedIn === true && !user) {
       return { status: "session_expired" };
     }
-    return await submitFeedback(getDatabase(), {
-      fields: formData.entries(),
+    // `entries()` tek kullanimlik; gonderim ve bildirim ayni diziyi okur.
+    const fields = Array.from(formData.entries());
+    const db = getDatabase();
+    const result = await submitFeedback(db, {
+      fields,
       user: user ? { id: user.id, email: user.email } : null,
       ip: clientIp(await headers()),
     });
+    if (result.status === "ok") {
+      const validated = validateFeedback(fields, { authenticated: user !== null });
+      if (validated.ok) {
+        const { category, title, email } = validated.value;
+        // Zamanlama basarisiz olsa bile kayit yazilmistir: sonuc asla degismez.
+        try {
+          after(() =>
+            notifyFormReceived(db, {
+              kind: "feedback",
+              categoryLabel: FEEDBACK_CATEGORY_LABELS[category],
+              title,
+              // Girisli kullanicida adres oturumdaki hesaptan gelir (`submitFeedback` ile ayni kural).
+              visitorEmail: user ? user.email : email,
+            }),
+          );
+        } catch {
+          console.error("[feedback] bildirim zamanlanamadi");
+        }
+      }
+    }
+    return result;
   } catch {
     console.error("[feedback] unexpected failure");
     return { status: "unavailable" };

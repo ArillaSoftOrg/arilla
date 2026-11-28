@@ -218,6 +218,7 @@ platform sorununu hafifletir.
 /yonetim/affiliate         Affiliate: mağaza/yüzey/kanal/gün çıkış toplamı, kapsam; dönüşüm ve gelir dış entegrasyon bekliyor (yalnızca admin, 0085)
 /yonetim/trendler          Trend yönetimi: durum, görünürlük, öne çıkarma, sıra; gerekçe + taze giriş, denetlenir (yalnızca admin, 0086)
 /yonetim/ayarlar           Etkin yapılandırma: bayrak, kota, tavan; salt okunur, sır değerleri gösterilmez (yalnızca admin, 0086)
+/yonetim/eposta           E-posta ayarları: ekibe bildirim, ziyaretçiye onay, fiyat alarmı ve pazarlama gönderimi anahtarları (denetlenir) ve şablon önizlemesi (yalnızca admin, 0222)
 /yonetim/trend             (ertelendi) trend_snapshot yayınlama onayı
 ```
 

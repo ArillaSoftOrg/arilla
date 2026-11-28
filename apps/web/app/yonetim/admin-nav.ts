@@ -278,6 +278,12 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         capability: "config.read",
         description: "Etkin bayraklar, kotalar ve tavanlar; salt okunur, sırlar gizli.",
       },
+      {
+        href: "/yonetim/eposta",
+        label: "E-posta ayarları",
+        capability: "email.manage",
+        description: "Ekibe bildirim, ziyaretçiye onay ve mevcut e-postaları aç/kapa; önizleme.",
+      },
     ],
   },
   {

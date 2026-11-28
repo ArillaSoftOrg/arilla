@@ -132,6 +132,8 @@ export type AdminAction =
   | "links.update"
   | "links.activate"
   | "links.deactivate"
+  /** Karar 0222: e-posta anahtarları; önce/sonra yalnızca anahtar değerleri (kişisel veri yok). */
+  | "email_settings.update"
   /** Katalog toplama (karar 0117): kosu rezervasyonu ve kapanisi; urun icerigi YAZILMAZ. */
   | "catalog_collection.start"
   // Karar 0220: yonetici tarayicisindaki zamanlayicinin actigi haftalik yenileme.
@@ -165,7 +167,9 @@ export type AdminTargetType =
   | "data_build"
   | "data_export"
   /** Karar 0115: `tracking_link` satırı. */
-  | "tracking_link";
+  | "tracking_link"
+  /** Karar 0222: `email_setting` tek satırı (hedef kimliği "1"). */
+  | "email_settings";
 
 /** Filtre ve bağlantı için bilinen hedef türleri. */
 export const AUDIT_TARGET_TYPES: readonly AdminTargetType[] = [
@@ -184,6 +188,7 @@ export const AUDIT_TARGET_TYPES: readonly AdminTargetType[] = [
   "data_build",
   "data_export",
   "tracking_link",
+  "email_settings",
 ];
 
 export function isAuditTargetType(value: unknown): value is AdminTargetType {

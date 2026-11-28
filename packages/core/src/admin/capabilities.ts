@@ -143,7 +143,12 @@ export type Capability =
    * Takip bağlantısı oluşturma, düzenleme, pasife alma (karar 0115). Kamuya
    * açık adresleri değiştirir: yalnızca yönetici, taze giriş, denetim kaydı.
    */
-  | "links.manage";
+  | "links.manage"
+  /**
+   * `/yonetim/eposta` (karar 0222): e-posta anahtarlarını görme ve değiştirme, şablon önizlemesi.
+   * Giden e-postayı açıp kapatır; yalnızca yönetici, her değişiklik aynı işlemde denetime.
+   */
+  | "email.manage";
 
 /** Mutasyonu yapan kişi. Rol, istek anında veritabanından okunmuş olmalıdır. */
 export interface AdminActor {
@@ -204,6 +209,8 @@ const ADMIN_CAPABILITIES: readonly Capability[] = [
   // Karar 0115: takip bağlantıları (kamuya açık kısa adresler) yalnızca yöneticinin.
   "links.read",
   "links.manage",
+  // Karar 0222: e-posta anahtarları yalnızca yöneticinin.
+  "email.manage",
 ];
 
 const ROLE_CAPABILITIES: Readonly<Record<UserRole, ReadonlySet<Capability>>> = {

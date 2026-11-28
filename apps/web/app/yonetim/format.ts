@@ -227,6 +227,7 @@ const ACTION_LABELS: Record<AdminAction, string> = {
   "links.update": "Takip bağlantısı düzenlendi",
   "links.activate": "Takip bağlantısı açıldı",
   "links.deactivate": "Takip bağlantısı kapatıldı",
+  "email_settings.update": "E-posta ayarları değişti",
 };
 
 export function actionLabel(action: string): string {
@@ -250,6 +251,7 @@ export const TARGET_TYPE_LABELS: Record<AdminTargetType, string> = {
   data_build: "Veri seti sürümü",
   data_export: "Veri seti dışa aktarımı",
   tracking_link: "Takip bağlantısı",
+  email_settings: "E-posta ayarları",
 };
 
 export function targetTypeLabel(targetType: string): string {
@@ -464,6 +466,7 @@ const MARKETING_REASON_LABELS: Record<string, string> = {
   configuration_error: "Yapılandırma hatası",
   unknown_outcome: "Sonuç belirsiz (yeniden denenmedi)",
   bulk_send_disabled: "Gerçek gönderim bu ortamda kapalı",
+  switched_off: "Pazarlama gönderimi E-posta ayarlarında kapalı",
 };
 
 export function marketingReasonLabel(code: string): string {

@@ -397,6 +397,18 @@ okunur, her görüntüleme denetime yazılır. `/gizlilik` 2.4 ve
 gönderimlerin saklama süresi geri bildirimdeki açık kalemle aynıdır: henüz
 tanımlı değil.
 
+**Form e-posta bildirimleri (0222):** yönetimdeki `/yonetim/eposta` anahtarları
+açıkken iletişim ve geri bildirim kaydı için iki e-posta gidebilir; ikisi de
+varsayılan olarak kapalıdır. *Ekibe bildirim* `ADMIN_NOTIFY_EMAIL` adresine
+yalnızca kategori, başlık ve gelen kutusu bağlantısını taşır: gönderenin
+e-postası ve mesaj metni e-postaya konmaz (o veri yalnızca `messages.read` ve
+denetim kaydıyla görünür). *Ziyaretçiye onay* formda bırakılan adrese sabit
+metinle gider; kullanıcının yazdığı metin yankılanmaz. Her ikisi de mevcut
+SMTP sağlayıcısı üzerinden gittiği için bu sağlayıcıya aktarım, e-posta
+sağlayıcısı için yazılan yurt dışı aktarım notu kapsamındadır. Aydınlatma
+metninin bu bildirimi anlatan hali hukukçu onayı ister; anahtarlar o onaya
+kadar kapalı bırakılır.
+
 **Anket / form notu (0058):** `/anket/<slug>` formları seçenek ve metin
 cevabı toplar. Girişli yanıt `user_id` ile hesaba bağlanır (hesap silinince
 `ON DELETE CASCADE`); anonim yanıtta kimlik ve IP yoktur (oran sınırı IP'nin

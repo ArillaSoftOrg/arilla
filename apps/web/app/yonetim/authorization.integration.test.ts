@@ -436,6 +436,12 @@ const PAGES: { name: string; admin: boolean; call: () => Promise<unknown> }[] = 
     admin: true,
     call: async () => (await import("./ayarlar/page.tsx")).default(),
   },
+  // Karar 0222: e-posta anahtarları (yalnızca yönetici).
+  {
+    name: "/yonetim/eposta",
+    admin: true,
+    call: async () => (await import("./eposta/page.tsx")).default(sp({})),
+  },
   // Karar 0116: Umami ziyaretçi analitiği (yalnızca yönetici).
   {
     name: "/yonetim/analitik",
@@ -994,6 +1000,13 @@ const ACTIONS: ActionCase[] = [
         subjectPublicId,
         "gecersiz-alan" as never,
       ),
+  },
+  // Karar 0222: işaret alanı yok, kapıyı geçen rolde reddedilir; ayar değişmez.
+  {
+    module: "eposta",
+    name: "saveEmailSettingsAction",
+    moderator: false,
+    call: async () => (await import("./eposta/actions.ts")).saveEmailSettingsAction(new FormData()),
   },
   {
     module: "erken-erisim",

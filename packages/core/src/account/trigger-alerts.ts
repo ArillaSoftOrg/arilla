@@ -18,6 +18,7 @@ import { alert, appUser, type Database, offer, offerVariant, product } from "@ar
 import { and, eq, exists, inArray, sql } from "drizzle-orm";
 import { requireAppUrl } from "../config/app-url.ts";
 import { toEmailDeliveryError } from "../email/delivery-error.ts";
+import { readEmailSettings } from "../email/settings.ts";
 import { emailFrom, smtpConfigFromEnv } from "../email/transport.ts";
 import { getVariantStock } from "../product/get-price-comparison.ts";
 import { sendAlertEmail } from "./send-alert-email.ts";
@@ -162,6 +163,13 @@ export async function triggerAlerts(db: Database): Promise<TriggerAlertsResult> 
     console.error(
       `[alarm] yapilandirma eksik, alarmlar islenmedi: ${toEmailDeliveryError(error).code}`,
     );
+    return { triggeredCount: 0, notifiedCount: 0 };
+  }
+
+  // Karar 0222: yonetimde kapatildiysa hicbir alarm tuketilmez (aktif kalir); acilinca ayni
+  // kosullarla gider. Ayar okunamazsa varsayilan ACIK (onceki davranis).
+  if (!(await readEmailSettings(db)).priceAlerts) {
+    console.info("[alarm] fiyat alarmi e-postalari yonetimde kapali, alarmlar islenmedi");
     return { triggeredCount: 0, notifiedCount: 0 };
   }
 
