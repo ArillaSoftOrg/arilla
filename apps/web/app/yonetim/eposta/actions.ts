@@ -13,6 +13,8 @@ import { requireCapability } from "../../lib/dal.ts";
  * Form onay kutularıyla çalışır, istemci betiği gerekmez: işaretli kutu FormData'da `"on"`
  * gelir, işaretsiz kutu hiç gelmez. Anahtar listesi sabit; formdaki başka alan yok sayılır.
  */
+const FORM_MARKER = "email-settings";
+
 const SWITCH_FIELDS = [
   "teamNotifications",
   "visitorConfirmations",
@@ -22,6 +24,12 @@ const SWITCH_FIELDS = [
 
 export async function saveEmailSettingsAction(formData: FormData): Promise<void> {
   const { actor } = await requireCapability("email.manage");
+  // İşaret alanı yoksa form bizden gelmemiştir; boş bir POST dört anahtarı sessizce kapatmasın.
+  if (formData.get("form") !== FORM_MARKER) {
+    redirect(
+      `/yonetim/eposta?hata=${encodeURIComponent("Form geçersiz, sayfayı yenileyip tekrar dene.")}`,
+    );
+  }
   const input = Object.fromEntries(SWITCH_FIELDS.map((key) => [key, formData.get(key) === "on"]));
   let target = "/yonetim/eposta?ok=1";
   try {

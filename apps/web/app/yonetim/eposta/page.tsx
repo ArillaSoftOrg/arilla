@@ -82,6 +82,7 @@ export default async function EmailSettingsPage({
       ) : null}
 
       <form action={saveEmailSettingsAction} className={styles.formGrid}>
+        <input type="hidden" name="form" value="email-settings" />
         <Panel
           id="ekip"
           title="Ekibe bildirim"

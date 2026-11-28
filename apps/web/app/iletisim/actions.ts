@@ -49,14 +49,19 @@ export async function submitContactAction(
       const validated = validateContact(fields);
       if (validated.ok) {
         const { category, subject, email } = validated.value;
-        after(() =>
-          notifyFormReceived(db, {
-            kind: "contact",
-            categoryLabel: CONTACT_CATEGORY_LABELS[category],
-            title: subject,
-            visitorEmail: email,
-          }),
-        );
+        // Zamanlama başarısız olsa bile kayıt yazılmıştır: sonuç asla değişmez.
+        try {
+          after(() =>
+            notifyFormReceived(db, {
+              kind: "contact",
+              categoryLabel: CONTACT_CATEGORY_LABELS[category],
+              title: subject,
+              visitorEmail: email,
+            }),
+          );
+        } catch {
+          console.error("[contact] bildirim zamanlanamadi");
+        }
       }
     }
     return result;

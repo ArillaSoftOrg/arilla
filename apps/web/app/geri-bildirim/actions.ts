@@ -50,15 +50,20 @@ export async function submitFeedbackAction(
       const validated = validateFeedback(fields, { authenticated: user !== null });
       if (validated.ok) {
         const { category, title, email } = validated.value;
-        after(() =>
-          notifyFormReceived(db, {
-            kind: "feedback",
-            categoryLabel: FEEDBACK_CATEGORY_LABELS[category],
-            title,
-            // Girisli kullanicida adres oturumdaki hesaptan gelir (`submitFeedback` ile ayni kural).
-            visitorEmail: user ? user.email : email,
-          }),
-        );
+        // Zamanlama basarisiz olsa bile kayit yazilmistir: sonuc asla degismez.
+        try {
+          after(() =>
+            notifyFormReceived(db, {
+              kind: "feedback",
+              categoryLabel: FEEDBACK_CATEGORY_LABELS[category],
+              title,
+              // Girisli kullanicida adres oturumdaki hesaptan gelir (`submitFeedback` ile ayni kural).
+              visitorEmail: user ? user.email : email,
+            }),
+          );
+        } catch {
+          console.error("[feedback] bildirim zamanlanamadi");
+        }
       }
     }
     return result;
